@@ -31,6 +31,20 @@ Grab the latest installer for your OS from the [Releases](../../releases) page.
 | macOS    | `.dmg` |
 | Linux    | `.deb`, `.rpm` |
 
+### macOS — First Launch
+
+This app is not signed with an Apple Developer certificate. macOS will block it on first launch.
+
+**Option A** — Open **System Settings > Privacy & Security**, scroll to the Security section, and click **Open Anyway** next to the blocked app message.
+
+**Option B** — Run once in Terminal:
+
+```bash
+xattr -cr /Applications/Vikunja\ Quick\ Entry.app
+```
+
+Either method is a one-time step. The app opens normally after that.
+
 ## Getting Started
 
 1. **Launch the app** — it starts in the system tray. On first run, the Settings window opens automatically

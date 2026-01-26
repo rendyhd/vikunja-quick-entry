@@ -5,6 +5,7 @@ if (process.platform === 'win32') {
   if (squirrelCommand) {
     const { spawn } = require('child_process');
     const path = require('path');
+    const fs = require('fs');
     const appFolder = path.resolve(process.execPath, '..');
     const rootFolder = path.resolve(appFolder, '..');
     const updateExe = path.resolve(path.join(rootFolder, 'Update.exe'));
@@ -20,9 +21,18 @@ if (process.platform === 'win32') {
 
     if (squirrelCommand === '--squirrel-install' || squirrelCommand === '--squirrel-updated') {
       spawnUpdate(['--createShortcut', exeName]);
+      // Launch the app after install
+      spawn(process.execPath, [], { detached: true, stdio: 'ignore' }).unref();
       setTimeout(() => process.exit(0), 1500);
     } else if (squirrelCommand === '--squirrel-uninstall') {
       spawnUpdate(['--removeShortcut', exeName]);
+      // Clean up user data (config, cache) from %APPDATA%
+      const userDataDir = path.join(process.env.APPDATA, 'vikunja-quick-entry');
+      try {
+        fs.rmSync(userDataDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup failures
+      }
       setTimeout(() => process.exit(0), 1500);
     } else if (squirrelCommand === '--squirrel-obsolete') {
       process.exit(0);
