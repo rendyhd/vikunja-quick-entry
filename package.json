@@ -8,12 +8,15 @@
     "package": "electron-forge package",
     "make": "electron-forge make"
   },
-  "author": "",
+  "author": "rendyhd",
   "license": "MIT",
   "devDependencies": {
     "@electron-forge/cli": "^7.6.0",
+    "@electron-forge/maker-deb": "^7.6.0",
+    "@electron-forge/maker-dmg": "^7.6.0",
+    "@electron-forge/maker-rpm": "^7.6.0",
     "@electron-forge/maker-squirrel": "^7.6.0",
     "@electron-forge/plugin-fuses": "^7.6.0",
-    "electron": "^33.2.0"
+    "electron": "^40.0.0"
   }
 }

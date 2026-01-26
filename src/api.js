@@ -1,6 +1,18 @@
 const { net } = require('electron');
 const { getConfig } = require('./config');
 
+function validateHttpUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { valid: false, error: 'Only HTTP(S) URLs are supported' };
+    }
+    return { valid: true, parsed };
+  } catch {
+    return { valid: false, error: 'Invalid URL' };
+  }
+}
+
 function createTask(title, description) {
   const config = getConfig();
   if (!config) {
@@ -8,6 +20,11 @@ function createTask(title, description) {
   }
 
   const url = `${config.vikunja_url}/api/v1/projects/${config.default_project_id}/tasks`;
+
+  const validation = validateHttpUrl(url);
+  if (!validation.valid) {
+    return Promise.resolve({ success: false, error: validation.error });
+  }
 
   const body = { title };
   if (description) {
@@ -76,6 +93,11 @@ function createTask(title, description) {
 }
 
 function fetchProjects(url, token) {
+  const validation = validateHttpUrl(url);
+  if (!validation.valid) {
+    return Promise.resolve({ success: false, error: validation.error });
+  }
+
   const apiUrl = `${url.replace(/\/+$/, '')}/api/v1/projects`;
 
   return new Promise((resolve) => {

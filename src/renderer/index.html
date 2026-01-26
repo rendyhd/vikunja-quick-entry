@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quick Entry</title>
   <link rel="stylesheet" href="styles.css">
@@ -16,8 +17,8 @@
       spellcheck="false"
     />
     <div id="description-hint" class="description-hint">Press TAB to add a description</div>
-    <textarea id="description-input" class="description-input"
-              placeholder="Description..." rows="4" style="display:none;"></textarea>
+    <textarea id="description-input" class="description-input hidden"
+              placeholder="Description..." rows="4"></textarea>
     <div id="error-message" class="error-message" hidden></div>
   </div>
   <script src="renderer.js"></script>

@@ -30,14 +30,14 @@ function clearError() {
 }
 
 function collapseDescription() {
-  descriptionInput.style.display = 'none';
+  descriptionInput.classList.add('hidden');
   descriptionInput.value = '';
-  descriptionHint.style.display = '';
+  descriptionHint.classList.remove('hidden');
 }
 
 function expandDescription() {
-  descriptionHint.style.display = 'none';
-  descriptionInput.style.display = '';
+  descriptionHint.classList.add('hidden');
+  descriptionInput.classList.remove('hidden');
   descriptionInput.focus();
 }
 

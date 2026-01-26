@@ -39,6 +39,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -79,6 +80,7 @@ function createSettingsWindow() {
       preload: path.join(__dirname, 'settings-preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
 

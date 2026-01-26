@@ -16,6 +16,35 @@ module.exports = {
         setupIcon: './assets/tray-icon.ico',
       },
     },
+    {
+      name: '@electron-forge/maker-dmg',
+      config: {
+        name: 'Vikunja Quick Entry',
+        icon: './assets/tray-icon.icns',
+      },
+    },
+    {
+      name: '@electron-forge/maker-deb',
+      config: {
+        options: {
+          name: 'vikunja-quick-entry',
+          productName: 'Vikunja Quick Entry',
+          icon: './assets/tray-icon.png',
+          categories: ['Utility'],
+        },
+      },
+    },
+    {
+      name: '@electron-forge/maker-rpm',
+      config: {
+        options: {
+          name: 'vikunja-quick-entry',
+          productName: 'Vikunja Quick Entry',
+          icon: './assets/tray-icon.png',
+          categories: ['Utility'],
+        },
+      },
+    },
   ],
   plugins: [
     new FusesPlugin({
