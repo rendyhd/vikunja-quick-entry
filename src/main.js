@@ -1,3 +1,40 @@
+// Handle Squirrel.Windows install/update/uninstall events
+// This must run before anything else
+if (process.platform === 'win32') {
+  const squirrelCommand = process.argv[1];
+  if (squirrelCommand) {
+    const { spawn } = require('child_process');
+    const path = require('path');
+    const appFolder = path.resolve(process.execPath, '..');
+    const rootFolder = path.resolve(appFolder, '..');
+    const updateExe = path.resolve(path.join(rootFolder, 'Update.exe'));
+    const exeName = path.basename(process.execPath);
+
+    const spawnUpdate = (args) => {
+      try {
+        spawn(updateExe, args, { detached: true });
+      } catch {
+        // Update.exe not found — ignore
+      }
+    };
+
+    if (squirrelCommand === '--squirrel-install' || squirrelCommand === '--squirrel-updated') {
+      spawnUpdate(['--createShortcut', exeName]);
+      setTimeout(() => process.exit(0), 1500);
+    } else if (squirrelCommand === '--squirrel-uninstall') {
+      spawnUpdate(['--removeShortcut', exeName]);
+      setTimeout(() => process.exit(0), 1500);
+    } else if (squirrelCommand === '--squirrel-obsolete') {
+      process.exit(0);
+    }
+
+    // If we matched a squirrel command, stop executing the rest of main.js
+    if (squirrelCommand.startsWith('--squirrel-')) {
+      return;
+    }
+  }
+}
+
 const {
   app,
   BrowserWindow,
@@ -6,6 +43,8 @@ const {
   globalShortcut,
   ipcMain,
   nativeImage,
+  Notification,
+  shell,
   dialog,
   screen,
 } = require('electron');
@@ -13,6 +52,7 @@ const path = require('path');
 const { getConfig, saveConfig } = require('./config');
 const { createTask, fetchProjects } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
+const { checkForUpdates } = require('./updater');
 
 // Ensure single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -24,6 +64,7 @@ let mainWindow = null;
 let settingsWindow = null;
 let tray = null;
 let config = null;
+let updateInfo = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -180,7 +221,7 @@ function updateTrayMenu() {
 
   const hasConfig = !!config;
 
-  const contextMenu = Menu.buildFromTemplate([
+  const items = [
     {
       label: 'Show Quick Entry',
       enabled: hasConfig,
@@ -190,7 +231,21 @@ function updateTrayMenu() {
       label: 'Settings',
       click: () => createSettingsWindow(),
     },
+  ];
+
+  if (updateInfo) {
+    items.push({
+      label: `Update Available (${updateInfo.version})`,
+      click: () => shell.openExternal(updateInfo.url),
+    });
+  }
+
+  items.push(
     { type: 'separator' },
+    {
+      label: 'Check for Updates',
+      click: () => performUpdateCheck(true),
+    },
     {
       label: 'Quit',
       click: () => {
@@ -198,9 +253,33 @@ function updateTrayMenu() {
         app.quit();
       },
     },
-  ]);
+  );
 
+  const contextMenu = Menu.buildFromTemplate(items);
   tray.setContextMenu(contextMenu);
+}
+
+function performUpdateCheck(force = false) {
+  checkForUpdates(
+    {
+      onUpdateAvailable(version, url) {
+        updateInfo = { version, url };
+        updateTrayMenu();
+
+        if (Notification.isSupported()) {
+          const notification = new Notification({
+            title: 'Vikunja Quick Entry',
+            body: `Update available: ${version}. Click to download.`,
+          });
+          notification.on('click', () => shell.openExternal(url));
+          notification.show();
+        }
+      },
+    },
+    force,
+  ).catch(() => {
+    // Silently ignore update check failures
+  });
 }
 
 function registerShortcut() {
@@ -315,6 +394,7 @@ app.on('ready', async () => {
   config = getConfig();
 
   createTray();
+  performUpdateCheck();
 
   if (!config) {
     // No config — open settings window instead of old setup dialog

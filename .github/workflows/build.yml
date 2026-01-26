@@ -48,6 +48,14 @@ jobs:
       - name: Build installer
         run: npm run make
 
+      - name: Rename Linux artifacts
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mv out/make/deb/x64/*.deb "out/make/deb/x64/Vikunja-Quick-Entry-${VERSION}-amd64.deb"
+          mv out/make/rpm/x64/*.rpm "out/make/rpm/x64/Vikunja-Quick-Entry-${VERSION}-x86_64.rpm"
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:

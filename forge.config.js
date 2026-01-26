@@ -1,5 +1,6 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const { version } = require('./package.json');
 
 module.exports = {
   packagerConfig: {
@@ -7,19 +8,21 @@ module.exports = {
     executableName: 'vikunja-quick-entry',
     asar: true,
     icon: './assets/icon',
+    osxSign: {},
   },
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
       config: {
         name: 'vikunja-quick-entry',
+        setupExe: `Vikunja-Quick-Entry-${version}-Setup.exe`,
         setupIcon: './assets/icon.ico',
       },
     },
     {
       name: '@electron-forge/maker-dmg',
       config: {
-        name: 'Vikunja Quick Entry',
+        name: `Vikunja-Quick-Entry-${version}`,
         icon: './assets/icon.icns',
       },
     },

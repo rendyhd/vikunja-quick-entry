@@ -3,3 +3,4 @@ out/
 dist/
 config.json
 *.log
+nul
