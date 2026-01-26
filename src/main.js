@@ -11,7 +11,7 @@ const {
 } = require('electron');
 const path = require('path');
 const { getConfig, saveConfig } = require('./config');
-const { createTask } = require('./api');
+const { createTask, fetchProjects } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 
 // Ensure single instance
@@ -21,13 +21,14 @@ if (!gotTheLock) {
 }
 
 let mainWindow = null;
+let settingsWindow = null;
 let tray = null;
 let config = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 560,
-    height: 100,
+    height: 260,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -56,6 +57,40 @@ function createWindow() {
     if (mainWindow && mainWindow.isVisible()) {
       hideWindow();
     }
+  });
+}
+
+function createSettingsWindow() {
+  if (settingsWindow) {
+    settingsWindow.focus();
+    return;
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 520,
+    height: 560,
+    frame: true,
+    transparent: false,
+    alwaysOnTop: false,
+    skipTaskbar: false,
+    resizable: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'settings-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  settingsWindow.setMenuBarVisibility(false);
+  settingsWindow.loadFile(path.join(__dirname, 'settings', 'settings.html'));
+
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow.show();
+  });
+
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
   });
 }
 
@@ -134,11 +169,26 @@ function createTray() {
 
   tray = new Tray(trayIcon);
   tray.setToolTip('Vikunja Quick Entry');
+  updateTrayMenu();
+  tray.on('click', () => {
+    if (config) toggleWindow();
+  });
+}
+
+function updateTrayMenu() {
+  if (!tray) return;
+
+  const hasConfig = !!config;
 
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Show Quick Entry',
+      enabled: hasConfig,
       click: () => showWindow(),
+    },
+    {
+      label: 'Settings',
+      click: () => createSettingsWindow(),
     },
     { type: 'separator' },
     {
@@ -151,7 +201,6 @@ function createTray() {
   ]);
 
   tray.setContextMenu(contextMenu);
-  tray.on('click', () => toggleWindow());
 }
 
 function registerShortcut() {
@@ -171,55 +220,15 @@ function registerShortcut() {
     console.log(`Global shortcut registered: ${hotkey}`);
   } else {
     console.error(`Failed to register global shortcut: ${hotkey}`);
-    dialog.showMessageBox({
-      type: 'warning',
-      title: 'Hotkey Registration Failed',
-      message: `Could not register global shortcut: ${hotkey}`,
-      detail:
-        'Another application may already be using this key combination.\n\n' +
-        'You can still use the app via the system tray icon.\n' +
-        'To change the hotkey, edit "hotkey" in your config.json.\n\n' +
-        'Examples: "Ctrl+Shift+Space", "Alt+N", "Ctrl+Alt+T"',
-    });
-  }
-}
-
-async function showSetupDialog() {
-  const { response } = await dialog.showMessageBox({
-    type: 'info',
-    title: 'Vikunja Quick Entry - Setup Required',
-    message: 'Configuration file not found.',
-    detail:
-      'Please create a config.json file in:\n' +
-      `${app.getPath('userData')}\n\n` +
-      'Required fields:\n' +
-      '  vikunja_url: "https://vikunja.example.com"\n' +
-      '  api_token: "tk_..." (needs Tasks:Create + Projects:ReadAll)\n' +
-      '  default_project_id: 2 (Inbox is usually 2, not 1)\n' +
-      '  hotkey: "Alt+Shift+V" (optional)',
-    buttons: ['Create Template & Quit', 'Quit'],
-  });
-
-  if (response === 0) {
-    saveConfig({
-      vikunja_url: 'https://vikunja.example.com',
-      api_token: 'tk_your_api_token_here',
-      default_project_id: 2,
-      hotkey: 'Alt+Shift+V',
-    });
-    await dialog.showMessageBox({
-      type: 'info',
-      title: 'Template Created',
-      message: `Config template saved to:\n${app.getPath('userData')}\\config.json\n\nEdit it with your Vikunja details and restart the app.`,
-    });
+    return false;
   }
 
-  app.quit();
+  return true;
 }
 
 // --- IPC Handlers ---
-ipcMain.handle('save-task', async (_event, title) => {
-  return createTask(title);
+ipcMain.handle('save-task', async (_event, title, description) => {
+  return createTask(title, description);
 });
 
 ipcMain.handle('close-window', () => {
@@ -232,6 +241,70 @@ ipcMain.handle('get-config', () => {
     : null;
 });
 
+ipcMain.handle('get-full-config', () => {
+  return config
+    ? {
+        vikunja_url: config.vikunja_url,
+        api_token: config.api_token,
+        default_project_id: config.default_project_id,
+        hotkey: config.hotkey,
+        launch_on_startup: config.launch_on_startup,
+      }
+    : null;
+});
+
+ipcMain.handle('save-settings', async (_event, settings) => {
+  try {
+    // Validate required fields
+    if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
+      return { success: false, error: 'URL, API token, and project are required.' };
+    }
+
+    const newConfig = {
+      vikunja_url: settings.vikunja_url.replace(/\/+$/, ''),
+      api_token: settings.api_token,
+      default_project_id: Number(settings.default_project_id),
+      hotkey: settings.hotkey || 'Alt+Shift+V',
+      launch_on_startup: settings.launch_on_startup === true,
+    };
+
+    // Save to disk
+    saveConfig(newConfig);
+
+    // Reload config
+    config = getConfig();
+
+    // Re-register hotkey
+    globalShortcut.unregisterAll();
+    const hotkeyOk = registerShortcut();
+    if (!hotkeyOk) {
+      return {
+        success: false,
+        error: `Could not register hotkey: ${newConfig.hotkey}. Another app may be using it.`,
+      };
+    }
+
+    // Apply startup setting
+    app.setLoginItemSettings({ openAtLogin: config.launch_on_startup });
+
+    // Create main window if it doesn't exist yet (first-time setup)
+    if (!mainWindow) {
+      createWindow();
+    }
+
+    // Update tray menu (enable "Show Quick Entry")
+    updateTrayMenu();
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message || 'Failed to save settings' };
+  }
+});
+
+ipcMain.handle('fetch-projects', async (_event, url, token) => {
+  return fetchProjects(url, token);
+});
+
 // --- App Lifecycle ---
 app.on('ready', async () => {
   // Hide dock icon on macOS (no-op on Windows, but good practice)
@@ -240,19 +313,25 @@ app.on('ready', async () => {
   }
 
   config = getConfig();
+
+  createTray();
+
   if (!config) {
-    await showSetupDialog();
+    // No config — open settings window instead of old setup dialog
+    createSettingsWindow();
     return;
   }
 
   createWindow();
-  createTray();
   registerShortcut();
+  app.setLoginItemSettings({ openAtLogin: config.launch_on_startup });
 });
 
 app.on('second-instance', () => {
   // If user opens a second instance, show the existing window
-  showWindow();
+  if (config) {
+    showWindow();
+  }
 });
 
 app.on('will-quit', () => {

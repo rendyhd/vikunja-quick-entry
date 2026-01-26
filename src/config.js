@@ -46,7 +46,7 @@ function validateConfig(config) {
 }
 
 function saveConfig(config) {
-  const configPath = path.join(app.getPath('userData'), CONFIG_FILENAME);
+  const configPath = getConfigPath();
   const dir = path.dirname(configPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -63,6 +63,7 @@ function getConfig() {
     api_token: config.api_token,
     default_project_id: Number(config.default_project_id),
     hotkey: config.hotkey || 'Alt+Shift+V',
+    launch_on_startup: config.launch_on_startup === true,
   };
 }
 

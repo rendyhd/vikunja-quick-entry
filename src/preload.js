@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
-  saveTask: (title) => ipcRenderer.invoke('save-task', title),
+  saveTask: (title, description) => ipcRenderer.invoke('save-task', title, description),
   closeWindow: () => ipcRenderer.invoke('close-window'),
   getConfig: () => ipcRenderer.invoke('get-config'),
   onShowWindow: (callback) => {

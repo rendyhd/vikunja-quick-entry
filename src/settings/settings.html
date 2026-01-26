@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Vikunja Quick Entry</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="settings-container">
+    <h1>Settings</h1>
+
+    <div class="form-group">
+      <label for="vikunja-url">Vikunja URL</label>
+      <input id="vikunja-url" type="url" placeholder="https://vikunja.example.com" spellcheck="false" />
+    </div>
+
+    <div class="form-group">
+      <label for="api-token">API Token</label>
+      <div class="input-row">
+        <input id="api-token" type="password" placeholder="tk_..." spellcheck="false" />
+        <button id="toggle-token" class="btn-icon" type="button" title="Show/hide token">Show</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="default-project">Default Project</label>
+      <div class="input-row">
+        <select id="default-project" disabled>
+          <option value="">Enter URL and token first</option>
+        </select>
+        <button id="load-projects" class="btn-secondary" type="button">Load Projects</button>
+      </div>
+      <div id="project-status" class="status-text"></div>
+    </div>
+
+    <div class="form-group">
+      <label for="hotkey-display">Global Hotkey</label>
+      <div class="input-row">
+        <input id="hotkey-display" type="text" readonly placeholder="Alt+Shift+V" />
+        <button id="record-hotkey" class="btn-secondary" type="button">Record</button>
+      </div>
+    </div>
+
+    <div class="form-group checkbox-group">
+      <label>
+        <input id="launch-startup" type="checkbox" />
+        <span>Launch on startup</span>
+      </label>
+    </div>
+
+    <div id="settings-error" class="error-text" hidden></div>
+
+    <div class="button-row">
+      <button id="btn-cancel" class="btn-secondary" type="button">Cancel</button>
+      <button id="btn-save" class="btn-primary" type="button">Save</button>
+    </div>
+  </div>
+  <script src="settings.js"></script>
+</body>
+</html>

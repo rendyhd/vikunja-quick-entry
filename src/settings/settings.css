@@ -1,0 +1,239 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+}
+
+.settings-container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 28px 24px;
+}
+
+h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.form-group input[type="url"],
+.form-group input[type="password"],
+.form-group input[type="text"],
+.form-group select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  color: #1a1a1a;
+  outline: none;
+  transition: border-color 150ms;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #4a90d9;
+}
+
+.form-group input[readonly] {
+  background: #f0f0f0;
+  cursor: default;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-row input,
+.input-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #1a1a1a;
+  font-weight: 400;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #4a90d9;
+}
+
+.status-text {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+  min-height: 16px;
+}
+
+.status-text.error {
+  color: #e53e3e;
+}
+
+.status-text.success {
+  color: #38a169;
+}
+
+.error-text {
+  font-size: 13px;
+  color: #e53e3e;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 6px;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-icon {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms, border-color 150ms;
+}
+
+.btn-primary {
+  background: #4a90d9;
+  color: #fff;
+  border-color: #3a7bc8;
+}
+
+.btn-primary:hover {
+  background: #3a7bc8;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #fff;
+  color: #333;
+  border-color: #d0d0d0;
+}
+
+.btn-secondary:hover {
+  background: #f0f0f0;
+}
+
+.btn-icon {
+  padding: 8px 12px;
+  background: #fff;
+  color: #555;
+  border-color: #d0d0d0;
+  font-size: 12px;
+}
+
+.btn-icon:hover {
+  background: #f0f0f0;
+}
+
+.button-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  html, body {
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+
+  .form-group label {
+    color: #aaa;
+  }
+
+  .form-group input[type="url"],
+  .form-group input[type="password"],
+  .form-group input[type="text"],
+  .form-group select {
+    background: #2a2a2a;
+    color: #e0e0e0;
+    border-color: #444;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus {
+    border-color: #5a9be6;
+  }
+
+  .form-group input[readonly] {
+    background: #333;
+  }
+
+  .checkbox-group label {
+    color: #e0e0e0;
+  }
+
+  .error-text {
+    background: #3a1a1a;
+    border-color: #5a2a2a;
+    color: #fc8181;
+  }
+
+  .btn-primary {
+    background: #4a90d9;
+    border-color: #3a7bc8;
+  }
+
+  .btn-secondary {
+    background: #2a2a2a;
+    color: #ccc;
+    border-color: #444;
+  }
+
+  .btn-secondary:hover {
+    background: #333;
+  }
+
+  .btn-icon {
+    background: #2a2a2a;
+    color: #aaa;
+    border-color: #444;
+  }
+
+  .btn-icon:hover {
+    background: #333;
+  }
+}

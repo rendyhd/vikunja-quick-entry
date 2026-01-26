@@ -61,6 +61,31 @@ body {
   opacity: 0.5;
 }
 
+/* Description hint */
+.description-hint {
+  padding: 2px 20px 8px;
+  font-size: 12px;
+  color: #999;
+}
+
+/* Description textarea */
+.description-input {
+  width: 100%;
+  padding: 8px 20px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #1a1a1a;
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  outline: none;
+  resize: none;
+}
+
+.description-input::placeholder {
+  color: #999;
+}
+
 /* Error message */
 .error-message {
   padding: 6px 20px 12px;
@@ -87,6 +112,19 @@ body {
   }
 
   #task-input::placeholder {
+    color: #666;
+  }
+
+  .description-hint {
+    color: #666;
+  }
+
+  .description-input {
+    color: #f0f0f0;
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .description-input::placeholder {
     color: #666;
   }
 
