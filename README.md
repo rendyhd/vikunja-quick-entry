@@ -1,90 +1,161 @@
 # Vikunja Quick Entry
 
-A lightweight system tray app with a global hotkey that opens a minimal floating text input for adding tasks to [Vikunja](https://vikunja.io).
+Capture tasks to [Vikunja](https://vikunja.io) instantly without leaving what you're working on. Press a hotkey, type your task, hit Enter — done.
 
-## Setup
+![Windows](https://img.shields.io/badge/Windows-supported-blue)
+![macOS](https://img.shields.io/badge/macOS-supported-blue)
+![Linux](https://img.shields.io/badge/Linux-supported-blue)
 
-Copy `config.example.json` to `config.json` and fill in your details:
+<!-- TODO: Add screenshot of the quick entry window here -->
+<!-- ![Screenshot](assets/screenshot.png) -->
+
+## Features
+
+- **Instant capture** — a global hotkey summons a floating input from anywhere, in any app
+- **Stays out of your way** — lives in the system tray with no taskbar or dock presence, only appears when called
+- **Single instance** — launching the app twice brings up the existing window instead of starting a second copy
+- **Never lose your place** — focus returns to your previous app after the window dismisses
+- **Title + description** — press Tab to expand a description field for extra detail
+- **Frosted glass UI** — translucent, blurred background that blends with your desktop
+- **Dark mode** — automatically matches your system theme
+- **Launch on startup** — optionally start with your OS so it's always ready
+- **Settings GUI** — configure everything through a built-in settings window
+
+## Download
+
+Grab the latest installer for your OS from the [Releases](../../releases) page.
+
+| Platform | Format |
+|----------|--------|
+| Windows  | `.exe` (Squirrel installer) |
+| macOS    | `.dmg` |
+| Linux    | `.deb`, `.rpm` |
+
+## Getting Started
+
+1. **Launch the app** — it starts in the system tray. On first run, the Settings window opens automatically
+2. **Open Settings** — or find it later via right-click on the tray icon > **Settings**
+3. **Enter your Vikunja URL** — e.g. `https://vikunja.example.com`
+4. **Enter your API token** — create one in Vikunja under **Settings > API Tokens** with **Tasks: Create** and **Projects: Read All** permissions
+5. **Load Projects** — click the button to fetch your projects, then pick a default
+6. **Set a hotkey** — click **Record** and press your preferred key combo (default: `Alt+Shift+V`)
+7. **Save** — you're ready to go
+
+Press your hotkey anywhere to open the input, type a task, and hit Enter.
+
+## Usage
+
+### Quick Entry
+
+| Key | Action |
+|-----|--------|
+| **Enter** | Save task and close (from title or description) |
+| **Tab** | Expand description field |
+| **Shift+Enter** | New line in description |
+| **Escape** | Close without saving |
+
+### Tray
+
+| Action | Behavior |
+|--------|----------|
+| Click tray icon | Toggle quick entry window |
+| Right-click tray icon | Menu: Show Quick Entry / Settings / Quit |
+
+The window also closes when you click outside it, or press the hotkey again while it's open.
+
+## Configuration
+
+Most users should use the built-in Settings window (right-click tray icon > Settings). For advanced use or automation, you can manually edit `config.json`:
 
 ```json
 {
   "vikunja_url": "https://vikunja.example.com",
   "api_token": "tk_your_api_token_here",
   "default_project_id": 2,
-  "hotkey": "Alt+Shift+V"
+  "hotkey": "Alt+Shift+V",
+  "launch_on_startup": false
 }
 ```
 
-### `vikunja_url`
+The app looks for `config.json` in two locations, checked in order:
 
-The base URL of your Vikunja instance, without a trailing slash.
+1. **Portable** — next to the executable / project root
+2. **User data** — the OS default app data directory (e.g. `%APPDATA%\vikunja-quick-entry` on Windows)
 
-### `api_token`
+### Hotkey Tips
 
-Create an API token in Vikunja under **Settings > API Tokens**.
+Uses [Electron Accelerator](https://www.electronjs.org/docs/latest/api/accelerator) format.
 
-The token needs these permissions at minimum:
-- **Tasks**: `Create`
-- **Projects**: `Read All`
+**Good choices:** `Alt+Shift+V` (default), `Ctrl+Shift+N`, `Alt+N`
 
-Both are required. `Projects: Read All` is needed so the API can verify your access to the target project. Without it, task creation returns `403 Forbidden`.
+**Avoid on Windows:** `Ctrl+Alt+*` (conflicts with AltGr), `Ctrl+Space` (intercepted by IME switching)
 
-### `default_project_id`
+### API Token
 
-The numeric ID of the project where tasks will be created.
+The token needs two permissions:
 
-**How to find your project ID:**
+- **Tasks** — `Create`
+- **Projects** — `Read All` (required to list projects in Settings and verify access; without it, task creation returns `403`)
 
-1. Open your Vikunja instance
-2. Call `GET /api/v1/projects` with your API token (the token needs `Projects: Read All`)
-3. Find your project in the response and note its `"id"` field
+## Development
 
-Using curl:
-```bash
-curl -s "https://vikunja.example.com/api/v1/projects" \
-  -H "Authorization: Bearer tk_your_api_token_here"
-```
-
-Note: The default "Inbox" project is typically ID **2**, not 1.
-
-### `hotkey`
-
-The global keyboard shortcut to open the quick entry window. Uses [Electron Accelerator](https://www.electronjs.org/docs/latest/api/accelerator) format.
-
-**Hotkeys that won't work on Windows:**
-- `Ctrl+Alt+*` combinations — conflict with AltGr key and are often intercepted by the OS
-- `Ctrl+Space` — intercepted by Windows for IME (input method) switching
-- `Ctrl+Shift+Space` — commonly used by 1Password and similar apps
-
-**Recommended hotkeys:**
-- `Alt+Shift+V` (default) — unlikely to conflict with anything
-- `Ctrl+Shift+N`
-- `Ctrl+Shift+A`
-- `Alt+N`
-
-## Usage
+Requires Node.js 20+.
 
 ```bash
+git clone https://github.com/rendyhd/vikunja-quick-entry.git
+cd vikunja-quick-entry
 npm install
 npm start
 ```
 
-The app runs in the system tray. Press your configured hotkey to open the quick entry window.
+### Project Structure
 
-| Action | Behavior |
-|--------|----------|
-| Press hotkey | Window appears, input focused |
-| Type + Enter | Task saved to Vikunja, window closes |
-| Escape | Window closes, nothing saved |
-| Click outside | Window closes |
-| Hotkey while open | Window closes (toggle) |
-| Tray icon click | Toggle window |
-| Tray right-click | Context menu (Show / Quit) |
+```
+src/
+  main.js              # Main process — tray, windows, IPC handlers
+  preload.js           # Preload for quick entry window
+  settings-preload.js  # Preload for settings window
+  api.js               # Vikunja API calls (create task, fetch projects)
+  config.js            # Config file loading/saving
+  focus.js             # Focus return helper
+  renderer/
+    index.html         # Quick entry window markup
+    renderer.js        # Quick entry window logic
+    styles.css         # Quick entry window styles
+  settings/
+    settings.html      # Settings window markup
+    settings.js        # Settings window logic
+    settings.css       # Settings window styles
+```
 
-## Building
+### Building
 
 ```bash
 npm run make
 ```
 
-Produces a Windows installer in the `out/` directory.
+Produces platform-specific installers in `out/make/` — Squirrel `.exe` on Windows, `.dmg` on macOS, `.deb` and `.rpm` on Linux.
+
+### CI/CD
+
+Pushing a version tag triggers a GitHub Actions workflow that builds on all three platforms and publishes a GitHub Release with all installers attached:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+Only `v*` tags trigger the workflow. Regular commits and branch pushes do not create releases.
+
+## Security
+
+- **Sandboxed renderers** — both windows run with `sandbox: true`
+- **Context isolation** — `contextIsolation: true`, `nodeIntegration: false`
+- **Content Security Policy** — `default-src 'self'` on all pages, no inline scripts or styles
+- **SSRF protection** — API calls validate that URLs use HTTP(S) before making requests
+- **Electron Fuses** — `RunAsNode`, `EnableNodeOptionsEnvironmentVariable`, and `EnableNodeCliInspectArguments` disabled
+- **Electron 40** — includes fix for ASAR integrity bypass vulnerability
+
+## License
+
+MIT

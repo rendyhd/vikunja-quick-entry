@@ -127,28 +127,26 @@ function toggleWindow() {
 }
 
 function createTrayIcon() {
-  // Try loading from file first
-  const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
+  const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
   try {
     const icon = nativeImage.createFromPath(iconPath);
-    if (!icon.isEmpty()) return icon;
+    if (!icon.isEmpty()) {
+      // Resize to appropriate tray icon size (16x16, with @2x for HiDPI)
+      return icon.resize({ width: 16, height: 16 });
+    }
   } catch {
     // fall through to programmatic icon
   }
 
-  // Generate a 16x16 "V" checkmark icon programmatically
+  // Fallback: generate a 16x16 "V" checkmark icon programmatically
   const size = 16;
   const buf = Buffer.alloc(size * size * 4, 0); // RGBA
 
-  // Draw a simple "V" checkmark in white
   const pixels = [
-    // Left stroke of V
     [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8],
     [3, 3], [4, 4], [5, 5], [6, 6], [7, 7],
-    // Right stroke of V
     [8, 9], [9, 10], [10, 11], [11, 12], [12, 13],
     [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 11],
-    // Bottom of V
     [7, 9], [8, 10],
   ];
 
@@ -156,7 +154,7 @@ function createTrayIcon() {
     const offset = (y * size + x) * 4;
     buf[offset] = 100;     // R
     buf[offset + 1] = 149; // G
-    buf[offset + 2] = 237; // B (a nice blue)
+    buf[offset + 2] = 237; // B
     buf[offset + 3] = 255; // A
   }
 

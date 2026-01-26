@@ -5,22 +5,22 @@ module.exports = {
   packagerConfig: {
     name: 'Vikunja Quick Entry',
     executableName: 'vikunja-quick-entry',
-    icon: './assets/tray-icon',
     asar: true,
+    icon: './assets/icon',
   },
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
       config: {
         name: 'vikunja-quick-entry',
-        setupIcon: './assets/tray-icon.ico',
+        setupIcon: './assets/icon.ico',
       },
     },
     {
       name: '@electron-forge/maker-dmg',
       config: {
         name: 'Vikunja Quick Entry',
-        icon: './assets/tray-icon.icns',
+        icon: './assets/icon.icns',
       },
     },
     {
@@ -29,8 +29,8 @@ module.exports = {
         options: {
           name: 'vikunja-quick-entry',
           productName: 'Vikunja Quick Entry',
-          icon: './assets/tray-icon.png',
           categories: ['Utility'],
+          icon: './assets/icon.png',
         },
       },
     },
@@ -40,8 +40,8 @@ module.exports = {
         options: {
           name: 'vikunja-quick-entry',
           productName: 'Vikunja Quick Entry',
-          icon: './assets/tray-icon.png',
           categories: ['Utility'],
+          icon: './assets/icon.png',
         },
       },
     },
