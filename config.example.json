@@ -1,0 +1,6 @@
+{
+  "vikunja_url": "https://vikunja.example.com",
+  "api_token": "tk_your_api_token_here",
+  "default_project_id": 2,
+  "hotkey": "Alt+Shift+V"
+}

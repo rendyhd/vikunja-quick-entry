@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(dir /a \"C:\\\\Users\\\\rendy\\\\vscode\\\\vikunja-quick-entry\")"
+    ]
+  }
+}
