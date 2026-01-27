@@ -172,6 +172,13 @@ async function loadConfig() {
 }
 loadConfig();
 
+// Close window when clicking outside the container (transparent area)
+document.addEventListener('mousedown', (e) => {
+  if (!container.contains(e.target)) {
+    window.api.closeWindow();
+  }
+});
+
 // Initial animation on first load
 requestAnimationFrame(() => {
   container.classList.add('visible');
