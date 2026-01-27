@@ -65,11 +65,30 @@ body {
   opacity: 0.5;
 }
 
+/* Hints row (TAB hint + today hint inline) */
+.hints-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 20px 8px;
+}
+
 /* Description hint */
 .description-hint {
-  padding: 2px 20px 8px;
   font-size: 12px;
   color: #999;
+}
+
+/* Today scheduling hint */
+.today-hint {
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+}
+
+#today-hint-below {
+  padding: 2px 20px 8px;
+  text-align: right;
 }
 
 /* Description textarea */
@@ -120,6 +139,10 @@ body {
   }
 
   .description-hint {
+    color: #666;
+  }
+
+  .today-hint {
     color: #666;
   }
 

@@ -326,8 +326,8 @@ function registerShortcut() {
 }
 
 // --- IPC Handlers ---
-ipcMain.handle('save-task', async (_event, title, description) => {
-  return createTask(title, description);
+ipcMain.handle('save-task', async (_event, title, description, dueDate) => {
+  return createTask(title, description, dueDate);
 });
 
 ipcMain.handle('close-window', () => {
@@ -336,7 +336,7 @@ ipcMain.handle('close-window', () => {
 
 ipcMain.handle('get-config', () => {
   return config
-    ? { vikunja_url: config.vikunja_url, default_project_id: config.default_project_id }
+    ? { vikunja_url: config.vikunja_url, default_project_id: config.default_project_id, exclamation_today: config.exclamation_today }
     : null;
 });
 
@@ -348,6 +348,7 @@ ipcMain.handle('get-full-config', () => {
         default_project_id: config.default_project_id,
         hotkey: config.hotkey,
         launch_on_startup: config.launch_on_startup,
+        exclamation_today: config.exclamation_today,
       }
     : null;
 });
@@ -365,6 +366,7 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       default_project_id: Number(settings.default_project_id),
       hotkey: settings.hotkey || 'Alt+Shift+V',
       launch_on_startup: settings.launch_on_startup === true,
+      exclamation_today: settings.exclamation_today !== false,
     };
 
     // Save to disk
