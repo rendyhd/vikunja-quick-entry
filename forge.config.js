@@ -8,10 +8,6 @@ module.exports = {
     executableName: 'vikunja-quick-entry',
     asar: true,
     icon: './assets/icon',
-    osxSign: {
-      identity: '-',
-      identityValidation: false,
-    },
   },
   makers: [
     {
