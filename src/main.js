@@ -75,6 +75,7 @@ let settingsWindow = null;
 let tray = null;
 let config = null;
 let updateInfo = null;
+let updateNotification = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -115,6 +116,9 @@ function createWindow() {
 function createSettingsWindow() {
   if (settingsWindow) {
     settingsWindow.focus();
+    if (app.dock) {
+      app.dock.show();
+    }
     return;
   }
 
@@ -140,10 +144,16 @@ function createSettingsWindow() {
 
   settingsWindow.once('ready-to-show', () => {
     settingsWindow.show();
+    if (app.dock) {
+      app.dock.show();
+    }
   });
 
   settingsWindow.on('closed', () => {
     settingsWindow = null;
+    if (app.dock) {
+      app.dock.hide();
+    }
   });
 }
 
@@ -277,12 +287,12 @@ function performUpdateCheck(force = false) {
         updateTrayMenu();
 
         if (Notification.isSupported()) {
-          const notification = new Notification({
+          updateNotification = new Notification({
             title: 'Vikunja Quick Entry',
             body: `Update available: ${version}. Click to download.`,
           });
-          notification.on('click', () => shell.openExternal(url));
-          notification.show();
+          updateNotification.on('click', () => shell.openExternal(url));
+          updateNotification.show();
         }
       },
     },
