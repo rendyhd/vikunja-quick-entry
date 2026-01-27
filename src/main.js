@@ -124,7 +124,7 @@ function createSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     width: 520,
-    height: 560,
+    height: 620,
     frame: true,
     transparent: false,
     alwaysOnTop: false,
@@ -349,6 +349,7 @@ ipcMain.handle('get-full-config', () => {
         hotkey: config.hotkey,
         launch_on_startup: config.launch_on_startup,
         exclamation_today: config.exclamation_today,
+        auto_check_updates: config.auto_check_updates,
       }
     : null;
 });
@@ -367,6 +368,7 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       hotkey: settings.hotkey || 'Alt+Shift+V',
       launch_on_startup: settings.launch_on_startup === true,
       exclamation_today: settings.exclamation_today !== false,
+      auto_check_updates: settings.auto_check_updates !== false,
     };
 
     // Save to disk
@@ -406,6 +408,12 @@ ipcMain.handle('fetch-projects', async (_event, url, token) => {
   return fetchProjects(url, token);
 });
 
+ipcMain.handle('open-external', (_event, url) => {
+  if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+    shell.openExternal(url);
+  }
+});
+
 // --- App Lifecycle ---
 app.on('ready', async () => {
   // Hide dock icon on macOS (no-op on Windows, but good practice)
@@ -416,7 +424,9 @@ app.on('ready', async () => {
   config = getConfig();
 
   createTray();
-  performUpdateCheck();
+  if (!config || config.auto_check_updates) {
+    performUpdateCheck();
+  }
 
   if (!config) {
     // No config — open settings window instead of old setup dialog
