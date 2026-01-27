@@ -89,7 +89,7 @@ Most users should use the built-in Settings window (right-click tray icon > Sett
 
 ```json
 {
-  "vikunja_url": "https://vikunja.example.com",
+  "vikunja_url": "https://app.vikunja.cloud",
   "api_token": "tk_your_api_token_here",
   "default_project_id": 2,
   "hotkey": "Alt+Shift+V",
