@@ -65,6 +65,7 @@ function getConfig() {
     hotkey: config.hotkey || 'Alt+Shift+V',
     launch_on_startup: config.launch_on_startup === true,
     exclamation_today: config.exclamation_today !== false,
+    auto_check_updates: config.auto_check_updates !== false,
   };
 }
 
