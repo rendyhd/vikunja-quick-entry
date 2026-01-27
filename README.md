@@ -1,6 +1,7 @@
 # Vikunja Quick Entry
 
 Capture tasks to [Vikunja](https://vikunja.io) instantly without leaving what you're working on. Press a hotkey, type your task, hit Enter — done.
+
 Looking for Voice support? [Check out Vikunja Voice Assistant for Home Assistant by NeoHuncho](https://github.com/NeoHuncho/vikunja-voice-assistant)
 
 ![Windows](https://img.shields.io/badge/Windows-supported-blue)
@@ -26,6 +27,7 @@ Looking for Voice support? [Check out Vikunja Voice Assistant for Home Assistant
 ## Download
 
 Grab the latest installer for your OS from the [Releases](../../releases) page.
+
 _Please note that the Windows installer immediatly installs without confirmation (Squirrel installer)._
 
 | Platform | Format |
