@@ -16,6 +16,7 @@ Capture tasks to [Vikunja](https://vikunja.io) instantly without leaving what yo
 - **Single instance** — launching the app twice brings up the existing window instead of starting a second copy
 - **Never lose your place** — focus returns to your previous app after the window dismisses
 - **Title + description** — press Tab to expand a description field for extra detail
+- **Quick-schedule for today** — include `!` anywhere in the task title to set the due date to today
 - **Frosted glass UI** — translucent, blurred background that blends with your desktop
 - **Dark mode** — automatically matches your system theme
 - **Launch on startup** — optionally start with your OS so it's always ready
@@ -67,6 +68,7 @@ Press your hotkey anywhere to open the input, type a task, and hit Enter.
 | **Tab** | Expand description field |
 | **Shift+Enter** | New line in description |
 | **Escape** | Close without saving |
+| **!** in title | Schedule task for today (e.g. `Buy groceries!`) |
 
 ### Tray
 
@@ -87,7 +89,8 @@ Most users should use the built-in Settings window (right-click tray icon > Sett
   "api_token": "tk_your_api_token_here",
   "default_project_id": 2,
   "hotkey": "Alt+Shift+V",
-  "launch_on_startup": false
+  "launch_on_startup": false,
+  "exclamation_today": true
 }
 ```
 
