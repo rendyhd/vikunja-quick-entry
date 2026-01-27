@@ -11,57 +11,119 @@
   <div class="settings-container">
     <h1>Settings</h1>
 
-    <div class="form-group">
-      <label for="vikunja-url">Vikunja URL</label>
-      <input id="vikunja-url" type="url" placeholder="https://app.vikunja.cloud" spellcheck="false" />
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="quick-entry">Quick Entry</button>
+      <button class="tab-btn" data-tab="quick-view">Quick View</button>
     </div>
 
-    <div class="form-group">
-      <label for="api-token">API Token</label>
-      <div class="input-row">
-        <input id="api-token" type="password" placeholder="tk_..." spellcheck="false" />
-        <button id="toggle-token" class="btn-icon" type="button" title="Show/hide token">Show</button>
+    <!-- Shared settings (always visible, above tabs) -->
+    <div class="shared-settings">
+      <div class="form-group">
+        <label for="vikunja-url">Vikunja URL</label>
+        <input id="vikunja-url" type="url" placeholder="https://app.vikunja.cloud" spellcheck="false" />
+      </div>
+
+      <div class="form-group">
+        <label for="api-token">API Token</label>
+        <div class="input-row">
+          <input id="api-token" type="password" placeholder="tk_..." spellcheck="false" />
+          <button id="toggle-token" class="btn-icon" type="button" title="Show/hide token">Show</button>
+        </div>
       </div>
     </div>
 
-    <div class="form-group">
-      <label for="default-project">Default Project</label>
-      <div class="input-row">
-        <select id="default-project" disabled>
-          <option value="">Enter URL and token first</option>
+    <!-- Quick Entry tab -->
+    <div id="tab-quick-entry" class="tab-content active">
+      <div class="form-group">
+        <label for="default-project">Default Project</label>
+        <div class="input-row">
+          <select id="default-project" disabled>
+            <option value="">Enter URL and token first</option>
+          </select>
+          <button id="load-projects" class="btn-secondary" type="button">Load Projects</button>
+        </div>
+        <div id="project-status" class="status-text"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="hotkey-display">Global Hotkey</label>
+        <div class="input-row">
+          <input id="hotkey-display" type="text" readonly placeholder="Alt+Shift+V" />
+          <button id="record-hotkey" class="btn-secondary" type="button">Record</button>
+        </div>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input id="launch-startup" type="checkbox" />
+          <span>Launch on startup</span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input id="exclamation-today" type="checkbox" checked />
+          <span>! schedules task for today</span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input id="auto-check-updates" type="checkbox" checked />
+          <span>Automatically check for updates on startup</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Quick View tab -->
+    <div id="tab-quick-view" class="tab-content">
+      <div class="form-group">
+        <label for="viewer-hotkey-display">Global Hotkey</label>
+        <div class="input-row">
+          <input id="viewer-hotkey-display" type="text" readonly placeholder="Alt+Shift+B" />
+          <button id="record-viewer-hotkey" class="btn-secondary" type="button">Record</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Projects to include</label>
+        <div id="viewer-projects-list" class="checkbox-list">
+          <div class="status-text">Load projects from Quick Entry tab first</div>
+        </div>
+        <button id="load-viewer-projects" class="btn-secondary btn-small" type="button">Load Projects</button>
+        <div id="viewer-project-status" class="status-text"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="viewer-sort-by">Sort by</label>
+        <div class="input-row">
+          <select id="viewer-sort-by">
+            <option value="due_date">Due date</option>
+            <option value="priority">Priority</option>
+            <option value="created">Date created</option>
+            <option value="updated">Date updated</option>
+            <option value="title">Title</option>
+          </select>
+          <select id="viewer-order-by">
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="viewer-due-date-filter">Due date filter</label>
+        <select id="viewer-due-date-filter">
+          <option value="all">All tasks</option>
+          <option value="overdue">Overdue only</option>
+          <option value="today">Due today or overdue</option>
+          <option value="this_week">Due this week</option>
+          <option value="this_month">Due this month</option>
+          <option value="has_due_date">Has a due date</option>
+          <option value="no_due_date">No due date</option>
         </select>
-        <button id="load-projects" class="btn-secondary" type="button">Load Projects</button>
       </div>
-      <div id="project-status" class="status-text"></div>
-    </div>
-
-    <div class="form-group">
-      <label for="hotkey-display">Global Hotkey</label>
-      <div class="input-row">
-        <input id="hotkey-display" type="text" readonly placeholder="Alt+Shift+V" />
-        <button id="record-hotkey" class="btn-secondary" type="button">Record</button>
-      </div>
-    </div>
-
-    <div class="form-group checkbox-group">
-      <label>
-        <input id="launch-startup" type="checkbox" />
-        <span>Launch on startup</span>
-      </label>
-    </div>
-
-    <div class="form-group checkbox-group">
-      <label>
-        <input id="exclamation-today" type="checkbox" checked />
-        <span>! schedules task for today</span>
-      </label>
-    </div>
-
-    <div class="form-group checkbox-group">
-      <label>
-        <input id="auto-check-updates" type="checkbox" checked />
-        <span>Automatically check for updates on startup</span>
-      </label>
     </div>
 
     <div id="settings-error" class="error-text" hidden></div>

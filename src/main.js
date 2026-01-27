@@ -60,7 +60,7 @@ const {
 } = require('electron');
 const path = require('path');
 const { getConfig, saveConfig } = require('./config');
-const { createTask, fetchProjects } = require('./api');
+const { createTask, fetchProjects, fetchTasks, markTaskDone } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
 
@@ -71,6 +71,7 @@ if (!gotTheLock) {
 }
 
 let mainWindow = null;
+let viewerWindow = null;
 let settingsWindow = null;
 let tray = null;
 let config = null;
@@ -124,7 +125,7 @@ function createSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     width: 520,
-    height: 620,
+    height: 700,
     frame: true,
     transparent: false,
     alwaysOnTop: false,
@@ -184,6 +185,105 @@ function toggleWindow() {
     hideWindow();
   } else {
     showWindow();
+  }
+}
+
+// --- Viewer Window ---
+function createViewerWindow() {
+  viewerWindow = new BrowserWindow({
+    width: 420,
+    height: 460,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: true,
+    minWidth: 300,
+    maxWidth: 800,
+    minHeight: 460,
+    maxHeight: 460,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'viewer-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+
+  viewerWindow.loadFile(path.join(__dirname, 'viewer', 'viewer.html'));
+
+  // Prevent the window from being destroyed — just hide it
+  viewerWindow.on('close', (e) => {
+    if (!app.isQuitting) {
+      e.preventDefault();
+      hideViewer();
+    }
+  });
+
+  viewerWindow.on('blur', () => {
+    if (viewerWindow && viewerWindow.isVisible()) {
+      hideViewer();
+    }
+  });
+
+  // Save position when window is moved
+  viewerWindow.on('moved', () => {
+    if (!viewerWindow || !config) return;
+    const [x, y] = viewerWindow.getPosition();
+    const updatedConfig = Object.assign({}, config, { viewer_position: { x, y } });
+    saveConfig(updatedConfig);
+    config = getConfig();
+  });
+}
+
+function showViewer() {
+  if (!viewerWindow) return;
+
+  if (config && config.viewer_position) {
+    // Use saved position, but ensure it's on-screen
+    const displays = screen.getAllDisplays();
+    const pos = config.viewer_position;
+    const onScreen = displays.some((d) => {
+      const bounds = d.workArea;
+      return pos.x >= bounds.x && pos.x < bounds.x + bounds.width &&
+             pos.y >= bounds.y && pos.y < bounds.y + bounds.height;
+    });
+    if (onScreen) {
+      viewerWindow.setPosition(pos.x, pos.y);
+    } else {
+      centerViewer();
+    }
+  } else {
+    centerViewer();
+  }
+
+  viewerWindow.show();
+  viewerWindow.focus();
+  viewerWindow.webContents.send('viewer-shown');
+}
+
+function centerViewer() {
+  if (!viewerWindow) return;
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+  const [winWidth] = viewerWindow.getSize();
+  const x = Math.round((screenWidth - winWidth) / 2);
+  const y = Math.round(screenHeight * 0.2);
+  viewerWindow.setPosition(x, y);
+}
+
+function hideViewer() {
+  if (!viewerWindow) return;
+  viewerWindow.hide();
+  returnFocusToPreviousWindow();
+}
+
+function toggleViewer() {
+  if (!viewerWindow) return;
+  if (viewerWindow.isVisible()) {
+    hideViewer();
+  } else {
+    showViewer();
   }
 }
 
@@ -248,6 +348,11 @@ function updateTrayMenu() {
       click: () => showWindow(),
     },
     {
+      label: 'Show Quick View',
+      enabled: hasConfig,
+      click: () => showViewer(),
+    },
+    {
       label: 'Settings',
       click: () => createSettingsWindow(),
     },
@@ -302,27 +407,45 @@ function performUpdateCheck(force = false) {
   });
 }
 
-function registerShortcut() {
-  const hotkey = config ? config.hotkey : 'Alt+Shift+V';
-  let registered = false;
+function registerShortcuts() {
+  let allOk = true;
 
+  // Quick Entry hotkey
+  const entryHotkey = config ? config.hotkey : 'Alt+Shift+V';
   try {
-    registered = globalShortcut.register(hotkey, () => {
-      console.log(`Hotkey "${hotkey}" triggered`);
+    const registered = globalShortcut.register(entryHotkey, () => {
+      console.log(`Entry hotkey "${entryHotkey}" triggered`);
       toggleWindow();
     });
+    if (registered) {
+      console.log(`Quick Entry shortcut registered: ${entryHotkey}`);
+    } else {
+      console.error(`Failed to register Quick Entry shortcut: ${entryHotkey}`);
+      allOk = false;
+    }
   } catch (err) {
-    console.error(`Error registering shortcut "${hotkey}":`, err.message);
+    console.error(`Error registering entry shortcut "${entryHotkey}":`, err.message);
+    allOk = false;
   }
 
-  if (registered) {
-    console.log(`Global shortcut registered: ${hotkey}`);
-  } else {
-    console.error(`Failed to register global shortcut: ${hotkey}`);
-    return false;
+  // Quick View hotkey
+  const viewerHotkey = config ? config.viewer_hotkey : 'Alt+Shift+B';
+  try {
+    const registered = globalShortcut.register(viewerHotkey, () => {
+      console.log(`Viewer hotkey "${viewerHotkey}" triggered`);
+      toggleViewer();
+    });
+    if (registered) {
+      console.log(`Quick View shortcut registered: ${viewerHotkey}`);
+    } else {
+      console.error(`Failed to register Quick View shortcut: ${viewerHotkey}`);
+      // Don't fail overall if only viewer hotkey fails
+    }
+  } catch (err) {
+    console.error(`Error registering viewer shortcut "${viewerHotkey}":`, err.message);
   }
 
-  return true;
+  return allOk;
 }
 
 // --- IPC Handlers ---
@@ -350,6 +473,8 @@ ipcMain.handle('get-full-config', () => {
         launch_on_startup: config.launch_on_startup,
         exclamation_today: config.exclamation_today,
         auto_check_updates: config.auto_check_updates,
+        viewer_hotkey: config.viewer_hotkey,
+        viewer_filter: config.viewer_filter,
       }
     : null;
 });
@@ -369,7 +494,19 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       launch_on_startup: settings.launch_on_startup === true,
       exclamation_today: settings.exclamation_today !== false,
       auto_check_updates: settings.auto_check_updates !== false,
+      viewer_hotkey: settings.viewer_hotkey || 'Alt+Shift+B',
+      viewer_filter: settings.viewer_filter || {
+        project_ids: [],
+        sort_by: 'due_date',
+        order_by: 'asc',
+        due_date_filter: 'all',
+      },
     };
+
+    // Preserve viewer_position from existing config
+    if (config && config.viewer_position) {
+      newConfig.viewer_position = config.viewer_position;
+    }
 
     // Save to disk
     saveConfig(newConfig);
@@ -377,9 +514,9 @@ ipcMain.handle('save-settings', async (_event, settings) => {
     // Reload config
     config = getConfig();
 
-    // Re-register hotkey
+    // Re-register hotkeys
     globalShortcut.unregisterAll();
-    const hotkeyOk = registerShortcut();
+    const hotkeyOk = registerShortcuts();
     if (!hotkeyOk) {
       return {
         success: false,
@@ -395,7 +532,12 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       createWindow();
     }
 
-    // Update tray menu (enable "Show Quick Entry")
+    // Create viewer window if it doesn't exist yet
+    if (!viewerWindow) {
+      createViewerWindow();
+    }
+
+    // Update tray menu (enable "Show Quick Entry" / "Show Quick View")
     updateTrayMenu();
 
     return { success: true };
@@ -412,6 +554,30 @@ ipcMain.handle('open-external', (_event, url) => {
   if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
     shell.openExternal(url);
   }
+});
+
+// --- Viewer IPC Handlers ---
+ipcMain.handle('fetch-viewer-tasks', async () => {
+  if (!config) {
+    return { success: false, error: 'Configuration not loaded' };
+  }
+  const filterParams = {
+    per_page: 10,
+    page: 1,
+    project_ids: config.viewer_filter.project_ids,
+    sort_by: config.viewer_filter.sort_by,
+    order_by: config.viewer_filter.order_by,
+    due_date_filter: config.viewer_filter.due_date_filter,
+  };
+  return fetchTasks(filterParams);
+});
+
+ipcMain.handle('mark-task-done', async (_event, taskId) => {
+  return markTaskDone(taskId);
+});
+
+ipcMain.handle('close-viewer', () => {
+  hideViewer();
 });
 
 // --- App Lifecycle ---
@@ -435,7 +601,8 @@ app.on('ready', async () => {
   }
 
   createWindow();
-  registerShortcut();
+  createViewerWindow();
+  registerShortcuts();
   app.setLoginItemSettings({ openAtLogin: config.launch_on_startup });
 });
 

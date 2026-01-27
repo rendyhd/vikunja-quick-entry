@@ -21,7 +21,53 @@ html, body {
 h1 {
   font-size: 20px;
   font-weight: 600;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+}
+
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #d0d0d0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+  border-radius: 6px 6px 0 0;
+}
+
+.tab-btn:hover {
+  color: #555;
+}
+
+.tab-btn.active {
+  color: #4a90d9;
+  border-bottom-color: #4a90d9;
+}
+
+/* Tab content */
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Shared settings */
+.shared-settings {
+  margin-bottom: 4px;
 }
 
 .form-group {
@@ -90,6 +136,43 @@ h1 {
   accent-color: #4a90d9;
 }
 
+/* Checkbox list for project multi-select */
+.checkbox-list {
+  max-height: 140px;
+  overflow-y: auto;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  padding: 4px 0;
+  margin-bottom: 8px;
+}
+
+.checkbox-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: background 100ms;
+}
+
+.checkbox-list label:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.checkbox-list input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #4a90d9;
+}
+
+.checkbox-list .status-text {
+  padding: 8px 12px;
+}
+
 .status-text {
   font-size: 12px;
   color: #888;
@@ -154,6 +237,11 @@ h1 {
   background: #f0f0f0;
 }
 
+.btn-small {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
 .btn-icon {
   padding: 8px 12px;
   background: #fff;
@@ -197,6 +285,23 @@ h1 {
     color: #e0e0e0;
   }
 
+  .tab-bar {
+    border-bottom-color: #444;
+  }
+
+  .tab-btn {
+    color: #777;
+  }
+
+  .tab-btn:hover {
+    color: #aaa;
+  }
+
+  .tab-btn.active {
+    color: #5a9be6;
+    border-bottom-color: #5a9be6;
+  }
+
   .form-group label {
     color: #aaa;
   }
@@ -221,6 +326,19 @@ h1 {
 
   .checkbox-group label {
     color: #e0e0e0;
+  }
+
+  .checkbox-list {
+    background: #2a2a2a;
+    border-color: #444;
+  }
+
+  .checkbox-list label {
+    color: #e0e0e0;
+  }
+
+  .checkbox-list label:hover {
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .error-text {
