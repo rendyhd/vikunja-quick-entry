@@ -1,6 +1,6 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
-const { version } = require('./package.json');
+const version = process.env.BUILD_VERSION || require('./package.json').version;
 
 module.exports = {
   packagerConfig: {
