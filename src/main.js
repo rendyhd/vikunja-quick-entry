@@ -60,7 +60,7 @@ const {
 } = require('electron');
 const path = require('path');
 const { getConfig, saveConfig } = require('./config');
-const { createTask, fetchProjects, fetchTasks, markTaskDone } = require('./api');
+const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
 
@@ -574,6 +574,18 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
 
 ipcMain.handle('mark-task-done', async (_event, taskId) => {
   return markTaskDone(taskId);
+});
+
+ipcMain.handle('mark-task-undone', async (_event, taskId) => {
+  return markTaskUndone(taskId);
+});
+
+ipcMain.handle('open-task-in-browser', (_event, taskId) => {
+  if (!config) return;
+  const url = `${config.vikunja_url}/tasks/${taskId}`;
+  if (url.startsWith('https://') || url.startsWith('http://')) {
+    shell.openExternal(url);
+  }
 });
 
 ipcMain.handle('close-viewer', () => {

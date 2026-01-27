@@ -43,8 +43,30 @@ body {
   transform: translateY(0);
 }
 
+/* Drag handle */
+.drag-handle {
+  -webkit-app-region: drag;
+  height: 28px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.drag-grip {
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
 /* Task input */
 #task-input {
+  -webkit-app-region: no-drag;
   width: 100%;
   padding: 16px 20px;
   font-size: 18px;
@@ -93,6 +115,7 @@ body {
 
 /* Description textarea */
 .description-input {
+  -webkit-app-region: no-drag;
   width: 100%;
   padding: 8px 20px 12px;
   font-size: 14px;
@@ -144,6 +167,14 @@ body {
 
   .today-hint {
     color: #666;
+  }
+
+  .drag-handle {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .drag-grip {
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .description-input {

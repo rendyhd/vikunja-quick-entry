@@ -43,8 +43,30 @@ body {
   transform: translateY(0);
 }
 
+/* Drag handle */
+.drag-handle {
+  -webkit-app-region: drag;
+  height: 28px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.drag-grip {
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
 /* Task list */
 .task-list {
+  -webkit-app-region: no-drag;
   max-height: 100%;
   overflow-y: auto;
 }
@@ -139,6 +161,12 @@ body {
   line-height: 1.4;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  cursor: pointer;
+}
+
+.task-title:hover {
+  text-decoration: underline;
+  color: #4a90d9;
 }
 
 .task-item.completing .task-title {
@@ -183,6 +211,22 @@ body {
 .task-priority.priority-3 { background: #ed8936; }
 .task-priority.priority-4 { background: #fc8181; }
 .task-priority.priority-5 { background: #e53e3e; }
+
+/* Selected task */
+.task-item.selected {
+  background: rgba(74, 144, 217, 0.10);
+}
+
+/* Completed undo message */
+.task-item.completed-undo {
+  padding: 10px 16px;
+}
+
+.task-item.completed-undo .completed-message {
+  font-size: 13px;
+  color: #888;
+  font-style: italic;
+}
 
 /* Error message */
 .error-message {
@@ -256,6 +300,10 @@ body {
     color: #f0f0f0;
   }
 
+  .task-title:hover {
+    color: #5a9be6;
+  }
+
   .task-due {
     color: #777;
   }
@@ -270,6 +318,22 @@ body {
 
   .task-due.upcoming {
     color: #68d391;
+  }
+
+  .drag-handle {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .drag-grip {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .task-item.selected {
+    background: rgba(90, 155, 230, 0.15);
+  }
+
+  .task-item.completed-undo .completed-message {
+    color: #777;
   }
 
   .error-message {
