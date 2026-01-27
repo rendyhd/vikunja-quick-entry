@@ -1,6 +1,7 @@
 # Vikunja Quick Entry
 
 Capture tasks to [Vikunja](https://vikunja.io) instantly without leaving what you're working on. Press a hotkey, type your task, hit Enter — done.
+Looking for Voice support? [Check out Vikunja Voice Assistant by NeoHuncho]([url](https://github.com/NeoHuncho/vikunja-voice-assistant))
 
 ![Windows](https://img.shields.io/badge/Windows-supported-blue)
 ![macOS](https://img.shields.io/badge/macOS-supported-blue)
@@ -25,6 +26,7 @@ Capture tasks to [Vikunja](https://vikunja.io) instantly without leaving what yo
 ## Download
 
 Grab the latest installer for your OS from the [Releases](../../releases) page.
+_Please note that the Windows installer immediatly installs without confirmation (Squirrel installer)._
 
 | Platform | Format |
 |----------|--------|
@@ -50,7 +52,7 @@ Either method is a one-time step. The app opens normally after that.
 
 1. **Launch the app** — it starts in the system tray. On first run, the Settings window opens automatically
 2. **Open Settings** — or find it later via right-click on the tray icon > **Settings**
-3. **Enter your Vikunja URL** — e.g. `https://vikunja.example.com`
+3. **Enter your Vikunja URL** — e.g. `https://app.vikunja.cloud`
 4. **Enter your API token** — create one in Vikunja under **Settings > API Tokens** with **Tasks: Create** and **Projects: Read All** permissions
 5. **Load Projects** — click the button to fetch your projects, then pick a default
 6. **Set a hotkey** — click **Record** and press your preferred key combo (default: `Alt+Shift+V`)
