@@ -16,9 +16,13 @@
       autocomplete="off"
       spellcheck="false"
     />
-    <div id="description-hint" class="description-hint">Press TAB to add a description</div>
+    <div id="hints-row" class="hints-row">
+      <div id="description-hint" class="description-hint">Press TAB to add a description</div>
+      <div id="today-hint-inline" class="today-hint hidden">scheduling for Today</div>
+    </div>
     <textarea id="description-input" class="description-input hidden"
               placeholder="Description..." rows="4"></textarea>
+    <div id="today-hint-below" class="today-hint hidden">scheduling for Today</div>
     <div id="error-message" class="error-message" hidden></div>
   </div>
   <script src="renderer.js"></script>

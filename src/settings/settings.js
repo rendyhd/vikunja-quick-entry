@@ -7,6 +7,7 @@ const projectStatus = document.getElementById('project-status');
 const hotkeyDisplay = document.getElementById('hotkey-display');
 const recordHotkeyBtn = document.getElementById('record-hotkey');
 const launchStartup = document.getElementById('launch-startup');
+const exclamationToday = document.getElementById('exclamation-today');
 const settingsError = document.getElementById('settings-error');
 const btnSave = document.getElementById('btn-save');
 const btnCancel = document.getElementById('btn-cancel');
@@ -22,6 +23,7 @@ async function loadExistingConfig() {
   tokenInput.value = config.api_token || '';
   hotkeyDisplay.value = config.hotkey || 'Alt+Shift+V';
   launchStartup.checked = config.launch_on_startup === true;
+  exclamationToday.checked = config.exclamation_today !== false;
 
   // If we have URL and token, auto-load projects
   if (config.vikunja_url && config.api_token) {
@@ -153,6 +155,7 @@ btnSave.addEventListener('click', async () => {
     default_project_id: projectSelect.value,
     hotkey: hotkeyDisplay.value || 'Alt+Shift+V',
     launch_on_startup: launchStartup.checked,
+    exclamation_today: exclamationToday.checked,
   };
 
   if (!settings.vikunja_url) {

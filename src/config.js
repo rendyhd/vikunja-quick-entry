@@ -64,6 +64,7 @@ function getConfig() {
     default_project_id: Number(config.default_project_id),
     hotkey: config.hotkey || 'Alt+Shift+V',
     launch_on_startup: config.launch_on_startup === true,
+    exclamation_today: config.exclamation_today !== false,
   };
 }
 

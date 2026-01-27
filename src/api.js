@@ -13,7 +13,7 @@ function validateHttpUrl(url) {
   }
 }
 
-function createTask(title, description) {
+function createTask(title, description, dueDate) {
   const config = getConfig();
   if (!config) {
     return Promise.resolve({ success: false, error: 'Configuration not loaded' });
@@ -29,6 +29,9 @@ function createTask(title, description) {
   const body = { title };
   if (description) {
     body.description = description;
+  }
+  if (dueDate) {
+    body.due_date = dueDate;
   }
 
   return new Promise((resolve) => {
