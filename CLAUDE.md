@@ -55,6 +55,27 @@ Required fields: `vikunja_url`, `api_token`, `default_project_id`. Optional: `ho
 
 `forge.config.js` configures Electron Forge makers for all platforms. Version is read from `package.json` and embedded in installer filenames. The CI workflow (`.github/workflows/build.yml`) builds on Windows/macOS/Linux in parallel on `v*` tag pushes, renames Linux artifacts for consistent naming, then creates a GitHub release with all installers.
 
+#### Version Bumping
+
+The version must be updated in **two files, three locations** before tagging a release:
+
+| File | Location | Example |
+|------|----------|---------|
+| `package.json` | `"version"` (line 3) | `"version": "1.3.2"` |
+| `package-lock.json` | Top-level `"version"` (line 3) | `"version": "1.3.2"` |
+| `package-lock.json` | `packages[""]["version"]` (line 9) | `"version": "1.3.2"` |
+
+All three must match. After bumping, tag as `v<version>` and push with `--tags` to trigger CI.
+
+#### macOS Code Signing
+
+**Do NOT add `osxSign` to `packagerConfig`.** The app uses ad-hoc signing only (no Apple Developer certificate).
+
+The `FusesPlugin` in `forge.config.js` flips Electron security fuses, which invalidates the binary's existing code signature. How it re-signs depends on whether `osxSign` is present:
+
+- **`osxSign` absent** (correct): FusesPlugin sets `resetAdHocDarwinSignature: true` on arm64 and runs `codesign --sign - --force --deep` itself. This works reliably.
+- **`osxSign` present** (broken): FusesPlugin sets `resetAdHocDarwinSignature: false`, expecting `@electron/osx-sign` to handle it. But `@electron/osx-sign` adds `--timestamp` by default, Apple's timestamp server rejects ad-hoc signatures, the signing fails silently (due to `continueOnError: true`), and the app ships with an invalid signature — causing `SIGKILL (Code Signature Invalid)` on Apple Silicon.
+
 ### Security
 
 Both renderer windows enforce CSP (`default-src 'self'`). Electron Fuses disable `RunAsNode`, `NodeOptions`, and CLI inspect. `api.js` validates URLs to block non-HTTP(S) protocols.
