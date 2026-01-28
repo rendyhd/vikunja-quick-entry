@@ -223,63 +223,85 @@ function fetchTasks(filterParams) {
   params.set('per_page', String(filterParams.per_page || 10));
   params.set('page', String(filterParams.page || 1));
 
-  // Build filter string parts
-  const filterParts = [];
+  // Date calculations for filters
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
-  // Always filter for open tasks
-  filterParts.push('done = false');
+  const hasProjects = filterParams.project_ids && filterParams.project_ids.length > 0;
+  const includeTodayAllProjects = filterParams.include_today_all_projects === true;
 
-  // Project filter
-  if (filterParams.project_ids && filterParams.project_ids.length > 0) {
+  // Build project filter clause
+  let projectClause = null;
+  if (hasProjects) {
     if (filterParams.project_ids.length === 1) {
-      filterParts.push(`project_id = ${filterParams.project_ids[0]}`);
+      projectClause = `project_id = ${filterParams.project_ids[0]}`;
     } else {
       const projectConditions = filterParams.project_ids.map(id => `project_id = ${id}`).join(' || ');
-      filterParts.push(`(${projectConditions})`);
+      projectClause = `(${projectConditions})`;
     }
   }
 
-  // Due date filter
+  // Build due date filter clause
+  let dueDateClause = null;
   if (filterParams.due_date_filter && filterParams.due_date_filter !== 'all') {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
     switch (filterParams.due_date_filter) {
       case 'overdue':
-        filterParts.push(`due_date < '${todayStart.toISOString()}'`);
-        filterParts.push(`due_date != '0001-01-01T00:00:00Z'`);
+        dueDateClause = `due_date < '${todayStart.toISOString()}' && due_date != '0001-01-01T00:00:00Z'`;
         break;
       case 'today':
-        filterParts.push(`due_date <= '${todayEnd.toISOString()}'`);
-        filterParts.push(`due_date != '0001-01-01T00:00:00Z'`);
+        dueDateClause = `due_date <= '${todayEnd.toISOString()}' && due_date != '0001-01-01T00:00:00Z'`;
         break;
       case 'this_week': {
         const weekEnd = new Date(todayStart);
         weekEnd.setDate(weekEnd.getDate() + (7 - weekEnd.getDay()));
         weekEnd.setHours(23, 59, 59);
-        filterParts.push(`due_date <= '${weekEnd.toISOString()}'`);
-        filterParts.push(`due_date != '0001-01-01T00:00:00Z'`);
+        dueDateClause = `due_date <= '${weekEnd.toISOString()}' && due_date != '0001-01-01T00:00:00Z'`;
         break;
       }
       case 'this_month': {
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-        filterParts.push(`due_date <= '${monthEnd.toISOString()}'`);
-        filterParts.push(`due_date != '0001-01-01T00:00:00Z'`);
+        dueDateClause = `due_date <= '${monthEnd.toISOString()}' && due_date != '0001-01-01T00:00:00Z'`;
         break;
       }
       case 'has_due_date':
-        filterParts.push(`due_date != '0001-01-01T00:00:00Z'`);
+        dueDateClause = `due_date != '0001-01-01T00:00:00Z'`;
         break;
       case 'no_due_date':
-        filterParts.push(`due_date = '0001-01-01T00:00:00Z'`);
+        dueDateClause = `due_date = '0001-01-01T00:00:00Z'`;
         break;
     }
   }
 
-  if (filterParts.length > 0) {
-    params.set('filter', filterParts.join(' && '));
+  // Build "due today" clause for union mode
+  const dueTodayClause = `due_date >= '${todayStart.toISOString()}' && due_date <= '${todayEnd.toISOString()}'`;
+
+  // Build the final filter string
+  // Normal mode: done = false && project_filter && due_date_filter
+  // Union mode (when include_today_all_projects && hasProjects):
+  //   done = false && ((project_filter && due_date_filter) || due_today_clause)
+  let filterString = 'done = false';
+
+  if (includeTodayAllProjects && hasProjects) {
+    // Union mode: combine normal filters with "due today from any project"
+    const normalFilterParts = [];
+    if (projectClause) normalFilterParts.push(projectClause);
+    if (dueDateClause) normalFilterParts.push(dueDateClause);
+
+    if (normalFilterParts.length > 0) {
+      const normalFilter = normalFilterParts.join(' && ');
+      filterString += ` && ((${normalFilter}) || (${dueTodayClause}))`;
+    } else {
+      // No project or due date filter, just add due today clause
+      filterString += ` && (${dueTodayClause})`;
+    }
+  } else {
+    // Normal mode: just chain the filters
+    if (projectClause) filterString += ` && ${projectClause}`;
+    if (dueDateClause) filterString += ` && ${dueDateClause}`;
   }
+
+  params.set('filter', filterString);
 
   // Sort
   const sortBy = filterParams.sort_by || 'due_date';

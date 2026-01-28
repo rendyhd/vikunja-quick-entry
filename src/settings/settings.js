@@ -26,6 +26,7 @@ const viewerProjectStatus = document.getElementById('viewer-project-status');
 const viewerSortBy = document.getElementById('viewer-sort-by');
 const viewerOrderBy = document.getElementById('viewer-order-by');
 const viewerDueDateFilter = document.getElementById('viewer-due-date-filter');
+const viewerIncludeToday = document.getElementById('viewer-include-today');
 
 // --- Shared elements ---
 const githubLink = document.getElementById('github-link');
@@ -77,6 +78,7 @@ async function loadExistingConfig() {
     viewerSortBy.value = config.viewer_filter.sort_by || 'due_date';
     viewerOrderBy.value = config.viewer_filter.order_by || 'asc';
     viewerDueDateFilter.value = config.viewer_filter.due_date_filter || 'all';
+    viewerIncludeToday.checked = config.viewer_filter.include_today_all_projects === true;
   }
 
   // If we have URL and token, auto-load projects
@@ -445,6 +447,7 @@ btnSave.addEventListener('click', async () => {
       sort_by: viewerSortBy.value,
       order_by: viewerOrderBy.value,
       due_date_filter: viewerDueDateFilter.value,
+      include_today_all_projects: viewerIncludeToday.checked,
     },
     secondary_projects: secondaryProjects.map(p => ({ id: p.id, title: p.title })),
   };

@@ -537,6 +537,7 @@ ipcMain.handle('save-settings', async (_event, settings) => {
         sort_by: 'due_date',
         order_by: 'asc',
         due_date_filter: 'all',
+        include_today_all_projects: false,
       },
       secondary_projects: Array.isArray(settings.secondary_projects) ? settings.secondary_projects : [],
     };
@@ -609,6 +610,7 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
     sort_by: config.viewer_filter.sort_by,
     order_by: config.viewer_filter.order_by,
     due_date_filter: config.viewer_filter.due_date_filter,
+    include_today_all_projects: config.viewer_filter.include_today_all_projects,
   };
   return fetchTasks(filterParams);
 });
