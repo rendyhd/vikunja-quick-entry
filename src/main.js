@@ -21,8 +21,6 @@ if (process.platform === 'win32') {
 
     if (squirrelCommand === '--squirrel-install' || squirrelCommand === '--squirrel-updated') {
       spawnUpdate(['--createShortcut', exeName]);
-      // Launch the app after install
-      spawn(process.execPath, [], { detached: true, stdio: 'ignore' }).unref();
       setTimeout(() => process.exit(0), 1500);
     } else if (squirrelCommand === '--squirrel-uninstall') {
       spawnUpdate(['--removeShortcut', exeName]);
