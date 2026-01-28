@@ -274,7 +274,8 @@ function fetchTasks(filterParams) {
   }
 
   // Build "due today" clause for union mode
-  const dueTodayClause = `due_date >= '${todayStart.toISOString()}' && due_date <= '${todayEnd.toISOString()}'`;
+  // Must exclude null due dates (0001-01-01T00:00:00Z) to prevent showing tasks without due dates
+  const dueTodayClause = `due_date >= '${todayStart.toISOString()}' && due_date <= '${todayEnd.toISOString()}' && due_date != '0001-01-01T00:00:00Z'`;
 
   // Build the final filter string
   // Normal mode: done = false && project_filter && due_date_filter
@@ -282,15 +283,31 @@ function fetchTasks(filterParams) {
   //   done = false && ((project_filter && due_date_filter) || due_today_clause)
   let filterString = 'done = false';
 
+  // Track if we're in union mode (affects filter_include_nulls handling)
+  let isUnionMode = false;
+
   if (includeTodayAllProjects && hasProjects) {
     // Union mode: combine normal filters with "due today from any project"
+    isUnionMode = true;
     const normalFilterParts = [];
     if (projectClause) normalFilterParts.push(projectClause);
     if (dueDateClause) normalFilterParts.push(dueDateClause);
 
+    // Build clause to include tasks with null due_date from selected project
+    // (needed because we'll disable filter_include_nulls in union mode)
+    const nullDueDateFromProject = projectClause
+      ? `(${projectClause} && due_date = '0001-01-01T00:00:00Z')`
+      : null;
+
     if (normalFilterParts.length > 0) {
       const normalFilter = normalFilterParts.join(' && ');
-      filterString += ` && ((${normalFilter}) || (${dueTodayClause}))`;
+      // Include: normal filter results OR null due dates from selected project OR due today from any project
+      if (nullDueDateFromProject && !dueDateClause) {
+        // Only add null clause when due_date_filter is "All" (no dueDateClause)
+        filterString += ` && ((${normalFilter}) || ${nullDueDateFromProject} || (${dueTodayClause}))`;
+      } else {
+        filterString += ` && ((${normalFilter}) || (${dueTodayClause}))`;
+      }
     } else {
       // No project or due date filter, just add due today clause
       filterString += ` && (${dueTodayClause})`;
@@ -310,7 +327,9 @@ function fetchTasks(filterParams) {
   params.set('order_by', orderBy);
 
   // Include nulls at end when sorting by due_date
-  if (sortBy === 'due_date') {
+  // BUT disable in union mode - we handle nulls explicitly in the filter to prevent
+  // tasks without due dates from other projects being included
+  if (sortBy === 'due_date' && !isUnionMode) {
     params.set('filter_include_nulls', 'true');
   }
 
