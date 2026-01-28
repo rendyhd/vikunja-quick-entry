@@ -77,6 +77,7 @@ function getConfig() {
       sort_by: (config.viewer_filter && config.viewer_filter.sort_by) || 'due_date',
       order_by: (config.viewer_filter && config.viewer_filter.order_by) || 'asc',
       due_date_filter: (config.viewer_filter && config.viewer_filter.due_date_filter) || 'all',
+      include_today_all_projects: (config.viewer_filter && config.viewer_filter.include_today_all_projects) === true,
     },
     secondary_projects: Array.isArray(config.secondary_projects) ? config.secondary_projects : [],
   };
