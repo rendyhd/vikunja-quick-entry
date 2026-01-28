@@ -92,6 +92,8 @@ function buildTaskItemDOM(task) {
   const item = document.createElement('div');
   item.className = 'task-item';
   item.dataset.taskId = task.id;
+  // Store full task data for undo (preserves due_date, priority, etc.)
+  item.dataset.task = JSON.stringify(task);
 
   // Priority indicator
   if (task.priority && task.priority > 0) {
@@ -166,15 +168,17 @@ function showCompletedMessage(item, taskId) {
 }
 
 async function completeTask(taskId, itemElement, checkbox) {
+  // Get original task data from DOM BEFORE API call (API response may lose due_date)
+  const originalTask = JSON.parse(itemElement.dataset.task || '{}');
+
   if (checkbox) checkbox.disabled = true;
   itemElement.classList.add('completing');
 
   const result = await window.viewerApi.markTaskDone(taskId);
 
   if (result.success) {
-    // Store task data for undo (from the response or reconstruct from DOM)
-    const taskData = result.task || { id: taskId };
-    completedTasks.set(String(taskId), taskData);
+    // Store ORIGINAL task data for undo (not from response which may have lost fields)
+    completedTasks.set(String(taskId), originalTask);
 
     // Replace item content with undo message
     showCompletedMessage(itemElement, taskId);
@@ -192,8 +196,8 @@ async function undoComplete(taskId, itemElement) {
   const result = await window.viewerApi.markTaskUndone(taskId);
 
   if (result.success) {
-    // Restore task item from the returned task data or stored data
-    const taskData = result.task || completedTasks.get(String(taskId)) || { id: taskId, title: 'Task' };
+    // Prefer stored original data over API response (API may lose due_date)
+    const taskData = completedTasks.get(String(taskId)) || result.task || { id: taskId, title: 'Task' };
     completedTasks.delete(String(taskId));
 
     const newItem = buildTaskItemDOM(taskData);

@@ -27,11 +27,10 @@ body {
 .container {
   -webkit-app-region: drag;
   width: 100%;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.3);
   opacity: 0;
   transform: translateY(-4px);
@@ -140,9 +139,8 @@ body {
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .container {
-    background: rgba(30, 30, 30, 0.85);
+    background: rgba(30, 30, 30, 0.90);
     border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
   #task-input {
