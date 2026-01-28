@@ -12,6 +12,7 @@ let errorTimeout = null;
 let exclamationTodayEnabled = true;
 let projectCycle = [];      // [{id, title}, ...] — default at index 0
 let currentProjectIndex = 0;
+let projectCycleModifier = 'ctrl'; // 'ctrl', 'alt', or 'ctrl+alt'
 
 function showError(msg) {
   errorMessage.textContent = msg;
@@ -110,6 +111,18 @@ function cycleProject(direction) {
   updateProjectHint();
 }
 
+function isProjectCycleModifierPressed(e) {
+  switch (projectCycleModifier) {
+    case 'alt':
+      return e.altKey && !e.ctrlKey;
+    case 'ctrl+alt':
+      return e.ctrlKey && e.altKey;
+    case 'ctrl':
+    default:
+      return e.ctrlKey && !e.altKey;
+  }
+}
+
 async function saveTask() {
   let title = input.value.trim();
   if (!title) return;
@@ -157,6 +170,7 @@ window.api.onShowWindow(async () => {
   const cfg = await window.api.getConfig();
   if (cfg) {
     exclamationTodayEnabled = cfg.exclamation_today !== false;
+    projectCycleModifier = cfg.project_cycle_modifier || 'ctrl';
     buildProjectCycle(cfg);
   }
 
@@ -170,13 +184,13 @@ window.api.onShowWindow(async () => {
 
 // Keyboard handling on title input
 input.addEventListener('keydown', async (e) => {
-  if (e.ctrlKey && e.key === 'ArrowRight') {
+  if (isProjectCycleModifierPressed(e) && e.key === 'ArrowRight') {
     e.preventDefault();
     cycleProject(1);
     return;
   }
 
-  if (e.ctrlKey && e.key === 'ArrowLeft') {
+  if (isProjectCycleModifierPressed(e) && e.key === 'ArrowLeft') {
     e.preventDefault();
     cycleProject(-1);
     return;
@@ -202,13 +216,13 @@ input.addEventListener('keydown', async (e) => {
 
 // Keyboard handling on description textarea
 descriptionInput.addEventListener('keydown', async (e) => {
-  if (e.ctrlKey && e.key === 'ArrowRight') {
+  if (isProjectCycleModifierPressed(e) && e.key === 'ArrowRight') {
     e.preventDefault();
     cycleProject(1);
     return;
   }
 
-  if (e.ctrlKey && e.key === 'ArrowLeft') {
+  if (isProjectCycleModifierPressed(e) && e.key === 'ArrowLeft') {
     e.preventDefault();
     cycleProject(-1);
     return;
@@ -237,6 +251,7 @@ async function loadConfig() {
   const cfg = await window.api.getConfig();
   if (cfg) {
     exclamationTodayEnabled = cfg.exclamation_today !== false;
+    projectCycleModifier = cfg.project_cycle_modifier || 'ctrl';
     buildProjectCycle(cfg);
   }
 }

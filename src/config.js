@@ -66,6 +66,9 @@ function getConfig() {
     launch_on_startup: config.launch_on_startup === true,
     exclamation_today: config.exclamation_today !== false,
     auto_check_updates: config.auto_check_updates !== false,
+    // Quick Entry settings
+    project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
+    entry_position: config.entry_position || null,
     // Quick View settings
     viewer_hotkey: config.viewer_hotkey || 'Alt+Shift+B',
     viewer_position: config.viewer_position || null,

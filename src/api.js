@@ -1,23 +1,51 @@
 const { net } = require('electron');
 const { getConfig } = require('./config');
 
+// Friendly error overrides for known unhelpful server messages
+const FRIENDLY_ERROR_OVERRIDES = [
+  {
+    pattern: /missing,?\s*malformed,?\s*expired\s*or\s*otherwise\s*invalid\s*token/i,
+    message: 'API token is invalid or expired. Generate a new token in Vikunja (Settings > API Tokens).',
+  },
+  {
+    pattern: /token.*(?:lacks?|insufficient|no)\s*permission/i,
+    message: 'API token has insufficient permissions. Create a new token with read/write access to tasks and projects.',
+  },
+];
+
+function getFriendlyError(serverMessage) {
+  if (!serverMessage) return null;
+  for (const { pattern, message } of FRIENDLY_ERROR_OVERRIDES) {
+    if (pattern.test(serverMessage)) return message;
+  }
+  return null;
+}
+
 function describeHttpError(statusCode, responseBody) {
   // Try to extract server message first
+  let serverMessage = null;
   try {
     const parsed = JSON.parse(responseBody);
-    if (parsed.message) return parsed.message;
+    if (parsed.message) serverMessage = parsed.message;
   } catch {
     // fall through to status code mapping
   }
 
+  // Check for friendly override first
+  const friendly = getFriendlyError(serverMessage);
+  if (friendly) return friendly;
+
+  // Fall back to status code messages
   switch (statusCode) {
     case 401:
-      return 'Unauthorized \u2014 API token is invalid or expired. Check Settings.';
+      return 'API token is invalid or expired. Check Settings or generate a new token in Vikunja.';
     case 403:
-      return 'Forbidden \u2014 your API token lacks permission for this action.';
+      return 'API token lacks permission. Ensure your token has read/write access to tasks and projects.';
     case 404:
       return 'Not found \u2014 the task or project may have been deleted.';
     default:
+      // If server message exists but no override, show it
+      if (serverMessage) return serverMessage;
       if (statusCode >= 500) {
         return 'Server error \u2014 Vikunja may be experiencing issues.';
       }
@@ -94,14 +122,7 @@ function createTask(title, description, dueDate, projectId) {
               resolve({ success: true, task: null });
             }
           } else {
-            let errorMsg = `HTTP ${statusCode}`;
-            try {
-              const parsed = JSON.parse(responseBody);
-              if (parsed.message) errorMsg = parsed.message;
-            } catch {
-              // use status code message
-            }
-            resolve({ success: false, error: errorMsg });
+            resolve({ success: false, error: describeHttpError(statusCode, responseBody) });
           }
         });
       });
@@ -166,14 +187,7 @@ function fetchProjects(url, token) {
               resolve({ success: false, error: 'Invalid response' });
             }
           } else {
-            let errorMsg = `HTTP ${statusCode}`;
-            try {
-              const parsed = JSON.parse(responseBody);
-              if (parsed.message) errorMsg = parsed.message;
-            } catch {
-              // use status code message
-            }
-            resolve({ success: false, error: errorMsg });
+            resolve({ success: false, error: describeHttpError(statusCode, responseBody) });
           }
         });
       });

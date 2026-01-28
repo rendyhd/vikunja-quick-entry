@@ -13,6 +13,9 @@ const autoCheckUpdates = document.getElementById('auto-check-updates');
 const secondaryProjectsList = document.getElementById('secondary-projects-list');
 const addSecondarySelect = document.getElementById('add-secondary-project');
 const addSecondaryBtn = document.getElementById('add-secondary-btn');
+const projectCycleModifier = document.getElementById('project-cycle-modifier');
+const cycleShortcutHint = document.getElementById('cycle-shortcut-hint');
+const cycleShortcutDisplay = document.getElementById('cycle-shortcut-display');
 
 // --- Quick View elements ---
 const viewerHotkeyDisplay = document.getElementById('viewer-hotkey-display');
@@ -62,6 +65,10 @@ async function loadExistingConfig() {
   launchStartup.checked = config.launch_on_startup === true;
   exclamationToday.checked = config.exclamation_today !== false;
   autoCheckUpdates.checked = config.auto_check_updates !== false;
+
+  // Project cycle modifier
+  projectCycleModifier.value = config.project_cycle_modifier || 'ctrl';
+  updateCycleShortcutDisplay(projectCycleModifier.value);
 
   // Quick View settings
   viewerHotkeyDisplay.value = config.viewer_hotkey || 'Alt+Shift+B';
@@ -431,6 +438,7 @@ btnSave.addEventListener('click', async () => {
     launch_on_startup: launchStartup.checked,
     exclamation_today: exclamationToday.checked,
     auto_check_updates: autoCheckUpdates.checked,
+    project_cycle_modifier: projectCycleModifier.value || 'ctrl',
     viewer_hotkey: viewerHotkeyDisplay.value || 'Alt+Shift+B',
     viewer_filter: {
       project_ids: getSelectedViewerProjectIds(),
@@ -494,6 +502,22 @@ function hideError() {
   settingsError.textContent = '';
   settingsError.hidden = true;
 }
+
+// --- Project cycle modifier ---
+function updateCycleShortcutDisplay(modifier) {
+  const displayMap = {
+    'ctrl': 'Ctrl',
+    'alt': 'Alt',
+    'ctrl+alt': 'Ctrl+Alt',
+  };
+  const display = displayMap[modifier] || 'Ctrl';
+  cycleShortcutHint.textContent = display;
+  cycleShortcutDisplay.textContent = `${display}+Left/Right`;
+}
+
+projectCycleModifier.addEventListener('change', () => {
+  updateCycleShortcutDisplay(projectCycleModifier.value);
+});
 
 // --- Init ---
 loadExistingConfig();

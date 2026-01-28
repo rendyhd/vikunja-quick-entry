@@ -25,6 +25,7 @@ body {
 
 /* Container card */
 .container {
+  -webkit-app-region: drag;
   width: 100%;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
@@ -43,30 +44,8 @@ body {
   transform: translateY(0);
 }
 
-/* Drag handle */
-.drag-handle {
-  -webkit-app-region: drag;
-  height: 28px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  flex-shrink: 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.drag-grip {
-  display: block;
-  width: 36px;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.15);
-}
-
 /* Task list */
 .task-list {
-  -webkit-app-region: no-drag;
   max-height: 100%;
   overflow-y: auto;
 }
@@ -106,6 +85,7 @@ body {
 
 /* Checkbox */
 .task-checkbox {
+  -webkit-app-region: no-drag;
   flex-shrink: 0;
   width: 18px;
   height: 18px;
@@ -156,6 +136,7 @@ body {
 }
 
 .task-title {
+  -webkit-app-region: no-drag;
   font-size: 14px;
   color: #1a1a1a;
   line-height: 1.4;
@@ -318,14 +299,6 @@ body {
 
   .task-due.upcoming {
     color: #68d391;
-  }
-
-  .drag-handle {
-    border-bottom-color: rgba(255, 255, 255, 0.06);
-  }
-
-  .drag-grip {
-    background: rgba(255, 255, 255, 0.2);
   }
 
   .task-item.selected {

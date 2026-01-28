@@ -110,6 +110,15 @@ function createWindow() {
       hideWindow();
     }
   });
+
+  // Save position when window is moved
+  mainWindow.on('moved', () => {
+    if (!mainWindow || !config) return;
+    const [x, y] = mainWindow.getPosition();
+    const updatedConfig = Object.assign({}, config, { entry_position: { x, y } });
+    saveConfig(updatedConfig);
+    config = getConfig();
+  });
 }
 
 function createSettingsWindow() {
@@ -159,16 +168,36 @@ function createSettingsWindow() {
 function showWindow() {
   if (!mainWindow) return;
 
-  // Center on the primary display
+  if (config && config.entry_position) {
+    // Use saved position, but ensure it's on-screen
+    const displays = screen.getAllDisplays();
+    const pos = config.entry_position;
+    const onScreen = displays.some((d) => {
+      const bounds = d.workArea;
+      return pos.x >= bounds.x && pos.x < bounds.x + bounds.width &&
+             pos.y >= bounds.y && pos.y < bounds.y + bounds.height;
+    });
+    if (onScreen) {
+      mainWindow.setPosition(pos.x, pos.y);
+    } else {
+      centerEntryWindow();
+    }
+  } else {
+    centerEntryWindow();
+  }
+
+  mainWindow.show();
+  mainWindow.focus();
+  mainWindow.webContents.send('window-shown');
+}
+
+function centerEntryWindow() {
+  if (!mainWindow) return;
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
   const [winWidth] = mainWindow.getSize();
   const x = Math.round((screenWidth - winWidth) / 2);
   const y = Math.round(screenHeight * 0.3); // Upper third of the screen
   mainWindow.setPosition(x, y);
-
-  mainWindow.show();
-  mainWindow.focus();
-  mainWindow.webContents.send('window-shown');
 }
 
 function hideWindow() {
@@ -463,6 +492,7 @@ ipcMain.handle('get-config', () => {
         default_project_id: config.default_project_id,
         exclamation_today: config.exclamation_today,
         secondary_projects: config.secondary_projects || [],
+        project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
       }
     : null;
 });
@@ -480,6 +510,7 @@ ipcMain.handle('get-full-config', () => {
         viewer_hotkey: config.viewer_hotkey,
         viewer_filter: config.viewer_filter,
         secondary_projects: config.secondary_projects || [],
+        project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
       }
     : null;
 });
@@ -499,6 +530,7 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       launch_on_startup: settings.launch_on_startup === true,
       exclamation_today: settings.exclamation_today !== false,
       auto_check_updates: settings.auto_check_updates !== false,
+      project_cycle_modifier: settings.project_cycle_modifier || 'ctrl',
       viewer_hotkey: settings.viewer_hotkey || 'Alt+Shift+B',
       viewer_filter: settings.viewer_filter || {
         project_ids: [],
@@ -509,9 +541,12 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       secondary_projects: Array.isArray(settings.secondary_projects) ? settings.secondary_projects : [],
     };
 
-    // Preserve viewer_position from existing config
+    // Preserve window positions from existing config
     if (config && config.viewer_position) {
       newConfig.viewer_position = config.viewer_position;
+    }
+    if (config && config.entry_position) {
+      newConfig.entry_position = config.entry_position;
     }
 
     // Save to disk

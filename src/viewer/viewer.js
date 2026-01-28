@@ -204,6 +204,13 @@ async function undoComplete(taskId, itemElement) {
   }
 }
 
+function openSelectedTaskInBrowser() {
+  const items = getTaskItems();
+  if (selectedIndex < 0 || selectedIndex >= items.length) return;
+  const taskId = items[selectedIndex].dataset.taskId;
+  window.viewerApi.openTaskInBrowser(Number(taskId));
+}
+
 async function handleEnterOnSelected() {
   const items = getTaskItems();
   if (selectedIndex < 0 || selectedIndex >= items.length) return;
@@ -260,6 +267,12 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowUp') {
     e.preventDefault();
     updateSelection(selectedIndex - 1);
+    return;
+  }
+
+  if (e.shiftKey && e.key === 'Enter') {
+    e.preventDefault();
+    openSelectedTaskInBrowser();
     return;
   }
 

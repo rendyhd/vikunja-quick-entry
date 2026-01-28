@@ -25,6 +25,7 @@ body {
 
 /* Container card */
 .container {
+  -webkit-app-region: drag;
   width: 100%;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
@@ -41,27 +42,6 @@ body {
 .container.visible {
   opacity: 1;
   transform: translateY(0);
-}
-
-/* Drag handle */
-.drag-handle {
-  -webkit-app-region: drag;
-  height: 28px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: grab;
-  flex-shrink: 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.drag-grip {
-  display: block;
-  width: 36px;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.15);
 }
 
 /* Project hint (shown when cycling away from default) */
@@ -183,14 +163,6 @@ body {
 
   .today-hint {
     color: #666;
-  }
-
-  .drag-handle {
-    border-bottom-color: rgba(255, 255, 255, 0.06);
-  }
-
-  .drag-grip {
-    background: rgba(255, 255, 255, 0.2);
   }
 
   .description-input {
