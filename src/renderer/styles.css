@@ -64,6 +64,18 @@ body {
   background: rgba(0, 0, 0, 0.15);
 }
 
+/* Project hint (shown when cycling away from default) */
+.project-hint {
+  padding: 4px 20px 0;
+  font-size: 12px;
+  color: #7c6fa0;
+  font-style: italic;
+}
+
+.project-hint span {
+  font-weight: 500;
+}
+
 /* Task input */
 #task-input {
   -webkit-app-region: no-drag;
@@ -159,6 +171,10 @@ body {
 
   #task-input::placeholder {
     color: #666;
+  }
+
+  .project-hint {
+    color: #b0a0d0;
   }
 
   .description-hint {

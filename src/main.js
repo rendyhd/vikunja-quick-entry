@@ -175,6 +175,7 @@ function showWindow() {
 
 function hideWindow() {
   if (!mainWindow) return;
+  mainWindow.webContents.send('window-hidden');
   mainWindow.hide();
   returnFocusToPreviousWindow();
 }
@@ -449,8 +450,8 @@ function registerShortcuts() {
 }
 
 // --- IPC Handlers ---
-ipcMain.handle('save-task', async (_event, title, description, dueDate) => {
-  return createTask(title, description, dueDate);
+ipcMain.handle('save-task', async (_event, title, description, dueDate, projectId) => {
+  return createTask(title, description, dueDate, projectId);
 });
 
 ipcMain.handle('close-window', () => {
@@ -459,7 +460,12 @@ ipcMain.handle('close-window', () => {
 
 ipcMain.handle('get-config', () => {
   return config
-    ? { vikunja_url: config.vikunja_url, default_project_id: config.default_project_id, exclamation_today: config.exclamation_today }
+    ? {
+        vikunja_url: config.vikunja_url,
+        default_project_id: config.default_project_id,
+        exclamation_today: config.exclamation_today,
+        secondary_projects: config.secondary_projects || [],
+      }
     : null;
 });
 
@@ -475,6 +481,7 @@ ipcMain.handle('get-full-config', () => {
         auto_check_updates: config.auto_check_updates,
         viewer_hotkey: config.viewer_hotkey,
         viewer_filter: config.viewer_filter,
+        secondary_projects: config.secondary_projects || [],
       }
     : null;
 });
@@ -501,6 +508,7 @@ ipcMain.handle('save-settings', async (_event, settings) => {
         order_by: 'asc',
         due_date_filter: 'all',
       },
+      secondary_projects: Array.isArray(settings.secondary_projects) ? settings.secondary_projects : [],
     };
 
     // Preserve viewer_position from existing config

@@ -5,9 +5,13 @@ const container = document.getElementById('container');
 const errorMessage = document.getElementById('error-message');
 const todayHintInline = document.getElementById('today-hint-inline');
 const todayHintBelow = document.getElementById('today-hint-below');
+const projectHint = document.getElementById('project-hint');
+const projectName = document.getElementById('project-name');
 
 let errorTimeout = null;
 let exclamationTodayEnabled = true;
+let projectCycle = [];      // [{id, title}, ...] — default at index 0
+let currentProjectIndex = 0;
 
 function showError(msg) {
   errorMessage.textContent = msg;
@@ -73,7 +77,37 @@ function resetInput() {
   clearError();
   todayHintInline.classList.add('hidden');
   todayHintBelow.classList.add('hidden');
+  currentProjectIndex = 0;
+  updateProjectHint();
   input.focus();
+}
+
+function buildProjectCycle(cfg) {
+  projectCycle = [{ id: cfg.default_project_id, title: null }];
+  if (cfg.secondary_projects && cfg.secondary_projects.length > 0) {
+    for (const p of cfg.secondary_projects) {
+      projectCycle.push({ id: p.id, title: p.title });
+    }
+  }
+  currentProjectIndex = 0;
+  updateProjectHint();
+}
+
+function updateProjectHint() {
+  if (currentProjectIndex === 0 || projectCycle.length <= 1) {
+    projectHint.classList.add('hidden');
+  } else {
+    projectName.textContent = projectCycle[currentProjectIndex].title;
+    projectHint.classList.remove('hidden');
+  }
+}
+
+function cycleProject(direction) {
+  if (projectCycle.length <= 1) return;
+  currentProjectIndex += direction;
+  if (currentProjectIndex >= projectCycle.length) currentProjectIndex = 0;
+  if (currentProjectIndex < 0) currentProjectIndex = projectCycle.length - 1;
+  updateProjectHint();
 }
 
 async function saveTask() {
@@ -95,7 +129,8 @@ async function saveTask() {
   descriptionInput.disabled = true;
   clearError();
 
-  const result = await window.api.saveTask(title, description, dueDate);
+  const projectId = projectCycle.length > 0 ? projectCycle[currentProjectIndex].id : null;
+  const result = await window.api.saveTask(title, description, dueDate, projectId);
 
   if (result.success) {
     window.api.closeWindow();
@@ -107,15 +142,25 @@ async function saveTask() {
   }
 }
 
+// When the window is hidden, reset state immediately so next show starts clean
+window.api.onHideWindow(() => {
+  container.classList.remove('visible');
+  resetInput();
+});
+
 // When the main process signals the window is shown
 window.api.onShowWindow(async () => {
+  // Safety net: ensure clean state in case hide handler didn't fire
+  resetInput();
+
   // Reload config in case settings changed
   const cfg = await window.api.getConfig();
   if (cfg) {
     exclamationTodayEnabled = cfg.exclamation_today !== false;
+    buildProjectCycle(cfg);
   }
 
-  resetInput();
+  input.focus();
 
   // Trigger fade-in animation
   container.classList.remove('visible');
@@ -125,6 +170,18 @@ window.api.onShowWindow(async () => {
 
 // Keyboard handling on title input
 input.addEventListener('keydown', async (e) => {
+  if (e.ctrlKey && e.key === 'ArrowRight') {
+    e.preventDefault();
+    cycleProject(1);
+    return;
+  }
+
+  if (e.ctrlKey && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    cycleProject(-1);
+    return;
+  }
+
   if (e.key === 'Escape') {
     e.preventDefault();
     window.api.closeWindow();
@@ -145,6 +202,18 @@ input.addEventListener('keydown', async (e) => {
 
 // Keyboard handling on description textarea
 descriptionInput.addEventListener('keydown', async (e) => {
+  if (e.ctrlKey && e.key === 'ArrowRight') {
+    e.preventDefault();
+    cycleProject(1);
+    return;
+  }
+
+  if (e.ctrlKey && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    cycleProject(-1);
+    return;
+  }
+
   if (e.key === 'Escape') {
     e.preventDefault();
     window.api.closeWindow();
@@ -163,11 +232,12 @@ input.addEventListener('input', () => {
   updateTodayHints();
 });
 
-// Load config to check exclamation_today setting
+// Load config to check exclamation_today setting and build project cycle
 async function loadConfig() {
   const cfg = await window.api.getConfig();
   if (cfg) {
     exclamationTodayEnabled = cfg.exclamation_today !== false;
+    buildProjectCycle(cfg);
   }
 }
 loadConfig();

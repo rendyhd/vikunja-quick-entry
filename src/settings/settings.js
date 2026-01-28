@@ -10,6 +10,9 @@ const recordHotkeyBtn = document.getElementById('record-hotkey');
 const launchStartup = document.getElementById('launch-startup');
 const exclamationToday = document.getElementById('exclamation-today');
 const autoCheckUpdates = document.getElementById('auto-check-updates');
+const secondaryProjectsList = document.getElementById('secondary-projects-list');
+const addSecondarySelect = document.getElementById('add-secondary-project');
+const addSecondaryBtn = document.getElementById('add-secondary-btn');
 
 // --- Quick View elements ---
 const viewerHotkeyDisplay = document.getElementById('viewer-hotkey-display');
@@ -30,6 +33,7 @@ const btnCancel = document.getElementById('btn-cancel');
 let recordingHotkey = false;
 let recordingViewerHotkey = false;
 let loadedProjects = null; // Cache projects for Quick View tab
+let secondaryProjects = []; // [{id, title}, ...]
 
 // --- Tab switching ---
 const tabBtns = document.querySelectorAll('.tab-btn');
@@ -71,6 +75,13 @@ async function loadExistingConfig() {
   // If we have URL and token, auto-load projects
   if (config.vikunja_url && config.api_token) {
     await loadProjects(config.default_project_id);
+
+    // Load secondary projects
+    if (config.secondary_projects && config.secondary_projects.length > 0) {
+      secondaryProjects = config.secondary_projects.map(p => ({ id: p.id, title: p.title }));
+      renderSecondaryProjects();
+      refreshAddSecondaryDropdown();
+    }
 
     // Populate viewer projects with preselected IDs
     if (loadedProjects) {
@@ -140,9 +151,117 @@ async function loadProjects(preselectId) {
   }
 
   setProjectStatus(`${result.projects.length} projects loaded.`, 'success');
+  refreshAddSecondaryDropdown();
 }
 
 loadProjectsBtn.addEventListener('click', () => loadProjects());
+
+// --- Secondary Projects ---
+function renderSecondaryProjects() {
+  secondaryProjectsList.innerHTML = '';
+  secondaryProjects.forEach((project, index) => {
+    const item = document.createElement('div');
+    item.className = 'reorder-item';
+
+    const title = document.createElement('span');
+    title.className = 'reorder-item-title';
+    title.textContent = project.title;
+
+    const actions = document.createElement('div');
+    actions.className = 'reorder-item-actions';
+
+    if (index > 0) {
+      const upBtn = document.createElement('button');
+      upBtn.className = 'reorder-btn';
+      upBtn.textContent = '\u2191';
+      upBtn.title = 'Move up';
+      upBtn.type = 'button';
+      upBtn.addEventListener('click', () => {
+        [secondaryProjects[index - 1], secondaryProjects[index]] =
+          [secondaryProjects[index], secondaryProjects[index - 1]];
+        renderSecondaryProjects();
+      });
+      actions.appendChild(upBtn);
+    }
+
+    if (index < secondaryProjects.length - 1) {
+      const downBtn = document.createElement('button');
+      downBtn.className = 'reorder-btn';
+      downBtn.textContent = '\u2193';
+      downBtn.title = 'Move down';
+      downBtn.type = 'button';
+      downBtn.addEventListener('click', () => {
+        [secondaryProjects[index], secondaryProjects[index + 1]] =
+          [secondaryProjects[index + 1], secondaryProjects[index]];
+        renderSecondaryProjects();
+      });
+      actions.appendChild(downBtn);
+    }
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'reorder-btn remove';
+    removeBtn.textContent = '\u00d7';
+    removeBtn.title = 'Remove';
+    removeBtn.type = 'button';
+    removeBtn.addEventListener('click', () => {
+      secondaryProjects.splice(index, 1);
+      renderSecondaryProjects();
+      refreshAddSecondaryDropdown();
+    });
+    actions.appendChild(removeBtn);
+
+    item.appendChild(title);
+    item.appendChild(actions);
+    secondaryProjectsList.appendChild(item);
+  });
+}
+
+function refreshAddSecondaryDropdown() {
+  if (!loadedProjects) {
+    addSecondarySelect.disabled = true;
+    addSecondaryBtn.disabled = true;
+    return;
+  }
+
+  const defaultId = String(projectSelect.value);
+  const usedIds = new Set(secondaryProjects.map(p => String(p.id)));
+  usedIds.add(defaultId);
+
+  addSecondarySelect.innerHTML = '<option value="">Select a project to add...</option>';
+
+  let hasOptions = false;
+  for (const project of loadedProjects) {
+    if (!usedIds.has(String(project.id))) {
+      const opt = document.createElement('option');
+      opt.value = project.id;
+      opt.textContent = project.title;
+      addSecondarySelect.appendChild(opt);
+      hasOptions = true;
+    }
+  }
+
+  addSecondarySelect.disabled = !hasOptions;
+  addSecondaryBtn.disabled = !hasOptions;
+}
+
+addSecondaryBtn.addEventListener('click', () => {
+  const selectedId = addSecondarySelect.value;
+  if (!selectedId) return;
+
+  const project = loadedProjects.find(p => String(p.id) === selectedId);
+  if (!project) return;
+
+  secondaryProjects.push({ id: project.id, title: project.title });
+  renderSecondaryProjects();
+  refreshAddSecondaryDropdown();
+});
+
+projectSelect.addEventListener('change', () => {
+  const defaultId = String(projectSelect.value);
+  secondaryProjects = secondaryProjects.filter(p => String(p.id) !== defaultId);
+  renderSecondaryProjects();
+  refreshAddSecondaryDropdown();
+});
 
 function setProjectStatus(msg, type) {
   projectStatus.textContent = msg;
@@ -319,6 +438,7 @@ btnSave.addEventListener('click', async () => {
       order_by: viewerOrderBy.value,
       due_date_filter: viewerDueDateFilter.value,
     },
+    secondary_projects: secondaryProjects.map(p => ({ id: p.id, title: p.title })),
   };
 
   if (!settings.vikunja_url) {

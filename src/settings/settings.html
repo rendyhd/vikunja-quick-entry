@@ -47,6 +47,17 @@
       </div>
 
       <div class="form-group">
+        <label>Secondary Projects <span class="label-hint">(Ctrl+Arrow to cycle in Quick Entry)</span></label>
+        <div id="secondary-projects-list" class="reorder-list"></div>
+        <div class="input-row" style="margin-top: 8px;">
+          <select id="add-secondary-project" disabled>
+            <option value="">Select a project to add...</option>
+          </select>
+          <button id="add-secondary-btn" class="btn-secondary btn-small" type="button" disabled>Add</button>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label for="hotkey-display">Global Hotkey</label>
         <div class="input-row">
           <input id="hotkey-display" type="text" readonly placeholder="Alt+Shift+V" />
@@ -73,6 +84,16 @@
           <input id="auto-check-updates" type="checkbox" checked />
           <span>Automatically check for updates on startup</span>
         </label>
+      </div>
+
+      <div class="shortcuts-help">
+        <div class="shortcuts-title">Keyboard Shortcuts</div>
+        <div class="shortcut-row"><kbd>Enter</kbd><span>Save task</span></div>
+        <div class="shortcut-row"><kbd>Tab</kbd><span>Expand description field</span></div>
+        <div class="shortcut-row"><kbd>Shift+Enter</kbd><span>Save task (from description)</span></div>
+        <div class="shortcut-row"><kbd>!</kbd><span>Schedule task for today (type in title)</span></div>
+        <div class="shortcut-row"><kbd>Ctrl+Left/Right</kbd><span>Cycle target project</span></div>
+        <div class="shortcut-row"><kbd>Esc</kbd><span>Close without saving</span></div>
       </div>
     </div>
 
@@ -123,6 +144,15 @@
           <option value="has_due_date">Has a due date</option>
           <option value="no_due_date">No due date</option>
         </select>
+      </div>
+
+      <div class="shortcuts-help">
+        <div class="shortcuts-title">Keyboard Shortcuts</div>
+        <div class="shortcut-row"><kbd>Up / Down</kbd><span>Navigate tasks</span></div>
+        <div class="shortcut-row"><kbd>Enter</kbd><span>Complete task / Undo</span></div>
+        <div class="shortcut-row"><kbd>Shift+Enter</kbd><span>Open task in browser</span></div>
+        <div class="shortcut-row"><kbd>Esc</kbd><span>Close window</span></div>
+        <div class="shortcut-note">Click a task title to open it in browser. Drag the handle to reposition the window.</div>
       </div>
     </div>
 

@@ -37,13 +37,14 @@ function validateHttpUrl(url) {
   }
 }
 
-function createTask(title, description, dueDate) {
+function createTask(title, description, dueDate, projectId) {
   const config = getConfig();
   if (!config) {
     return Promise.resolve({ success: false, error: 'Configuration not loaded' });
   }
 
-  const url = `${config.vikunja_url}/api/v1/projects/${config.default_project_id}/tasks`;
+  const targetProjectId = projectId || config.default_project_id;
+  const url = `${config.vikunja_url}/api/v1/projects/${targetProjectId}/tasks`;
 
   const validation = validateHttpUrl(url);
   if (!validation.valid) {
