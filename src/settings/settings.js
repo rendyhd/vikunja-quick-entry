@@ -349,19 +349,103 @@ function getSelectedViewerProjectIds() {
 }
 
 // --- Hotkey recording (shared utility) ---
+
+/**
+ * Maps KeyboardEvent.code to Electron accelerator key name.
+ * Uses e.code (physical key) instead of e.key (character) to avoid
+ * macOS character composition issues with Alt/Option key.
+ */
+function codeToAcceleratorKey(code) {
+  // Letters: "KeyA" -> "A"
+  if (code.startsWith('Key') && code.length === 4) {
+    return code.slice(3);
+  }
+
+  // Numbers: "Digit0" -> "0"
+  if (code.startsWith('Digit') && code.length === 6) {
+    return code.slice(5);
+  }
+
+  // Function keys: "F1" -> "F1" (no change)
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(code)) {
+    return code;
+  }
+
+  // Arrow keys: "ArrowUp" -> "Up"
+  if (code.startsWith('Arrow')) {
+    return code.slice(5);
+  }
+
+  // Numpad numbers: "Numpad0" -> "num0"
+  if (code.startsWith('Numpad') && code.length === 7 && /\d$/.test(code)) {
+    return 'num' + code.slice(6);
+  }
+
+  // Numpad operators
+  const numpadMap = {
+    'NumpadAdd': 'numadd',
+    'NumpadSubtract': 'numsub',
+    'NumpadMultiply': 'nummult',
+    'NumpadDivide': 'numdiv',
+    'NumpadDecimal': 'numdec',
+    'NumpadEnter': 'Enter',
+  };
+  if (numpadMap[code]) return numpadMap[code];
+
+  // Special keys (no transformation)
+  const directMap = {
+    'Space': 'Space',
+    'Enter': 'Enter',
+    'Tab': 'Tab',
+    'Escape': 'Escape',
+    'Backspace': 'Backspace',
+    'Delete': 'Delete',
+    'Insert': 'Insert',
+    'Home': 'Home',
+    'End': 'End',
+    'PageUp': 'PageUp',
+    'PageDown': 'PageDown',
+  };
+  if (directMap[code]) return directMap[code];
+
+  // Punctuation keys
+  const punctuationMap = {
+    'Minus': '-',
+    'Equal': '=',
+    'BracketLeft': '[',
+    'BracketRight': ']',
+    'Backslash': '\\',
+    'Semicolon': ';',
+    'Quote': "'",
+    'Backquote': '`',
+    'Comma': ',',
+    'Period': '.',
+    'Slash': '/',
+  };
+  if (punctuationMap[code]) return punctuationMap[code];
+
+  // Unknown key
+  return null;
+}
+
 function keyEventToAccelerator(e) {
   const parts = [];
   if (e.ctrlKey) parts.push('Ctrl');
   if (e.altKey) parts.push('Alt');
   if (e.shiftKey) parts.push('Shift');
 
-  // Ignore modifier-only presses
-  if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return null;
+  // Ignore modifier-only presses (check physical key codes)
+  const modifierCodes = ['ControlLeft', 'ControlRight', 'AltLeft', 'AltRight',
+                         'ShiftLeft', 'ShiftRight', 'MetaLeft', 'MetaRight'];
+  if (modifierCodes.includes(e.code)) return null;
 
   // Require at least one modifier
   if (parts.length === 0) return null;
 
-  let key = e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  // Convert physical key code to accelerator key name
+  const key = codeToAcceleratorKey(e.code);
+  if (!key) return null;
+
   parts.push(key);
   return parts.join('+');
 }
