@@ -174,7 +174,8 @@ async function completeTask(taskId, itemElement, checkbox) {
   if (checkbox) checkbox.disabled = true;
   itemElement.classList.add('completing');
 
-  const result = await window.viewerApi.markTaskDone(taskId);
+  // Pass original task data so the API preserves all fields (due_date, priority, etc.)
+  const result = await window.viewerApi.markTaskDone(taskId, originalTask);
 
   if (result.success) {
     // Store ORIGINAL task data for undo (not from response which may have lost fields)
@@ -193,11 +194,13 @@ async function completeTask(taskId, itemElement, checkbox) {
 }
 
 async function undoComplete(taskId, itemElement) {
-  const result = await window.viewerApi.markTaskUndone(taskId);
+  // Get stored original task data to restore all fields (due_date, priority, etc.)
+  const storedTask = completedTasks.get(String(taskId));
+  const result = await window.viewerApi.markTaskUndone(taskId, storedTask);
 
   if (result.success) {
-    // Prefer stored original data over API response (API may lose due_date)
-    const taskData = completedTasks.get(String(taskId)) || result.task || { id: taskId, title: 'Task' };
+    // Use stored original data (most reliable) or fall back to API response
+    const taskData = storedTask || result.task || { id: taskId, title: 'Task' };
     completedTasks.delete(String(taskId));
 
     const newItem = buildTaskItemDOM(taskData);
