@@ -2,9 +2,7 @@
 
 **Capture tasks instantly. Check your list without breaking flow.**
 
-Vikunja is a powerful task manager for complex projects — but sometimes you just need to jot down a thought before it slips away, or glance at what's due next without opening a browser. That's what this app does.
-
-Press a hotkey, type your task, hit Enter. Done. You never leave the app you're working in. A second hotkey shows your upcoming tasks so you can stay on top of the small things — the follow-ups, the quick errands, the "don't forget to" items — without pulling up a full project board.
+Vikunja is a powerful task manager — but sometimes you just need to jot down a thought before it slips away, or glance at what's due next without opening a browser. That's what this app does.
 
 It lives in your system tray, stays out of the way, and is always one keystroke away. Great for meetings, calls, deep work, or any time you want to capture or check tasks without losing your place.
 
@@ -12,7 +10,7 @@ It lives in your system tray, stays out of the way, and is always one keystroke 
 ![macOS](https://img.shields.io/badge/macOS-supported-blue)
 ![Linux](https://img.shields.io/badge/Linux-supported-blue)
 
-<!-- TODO: Add screenshot/gif showing Quick Entry and Quick View in action -->
+![Slide1](https://github.com/user-attachments/assets/aaf21d48-40ae-4408-bb28-026de3c46bd7)
 
 ---
 
@@ -20,7 +18,7 @@ It lives in your system tray, stays out of the way, and is always one keystroke 
 
 ### Instant task capture with a global hotkey
 
-Press your hotkey from anywhere — your browser, IDE, video call — and a lightweight floating window appears. Type your task, hit Enter, and it's saved to Vikunja. The window disappears and focus returns to whatever you were doing. The whole interaction takes a few seconds.
+Press your hotkey from anywhere and a lightweight floating window appears. Type your task, hit Enter, and it's saved to Vikunja. The window disappears and focus returns to whatever you were doing. The whole interaction takes a few seconds.
 
 ### At-a-glance task list
 
@@ -50,14 +48,6 @@ Configure Quick View to show tasks from specific projects, sorted by due date, p
 
 Translucent, blurred background that blends with your desktop. Automatically matches your system's light or dark theme.
 
-### Auto-update notifications
-
-The app checks for new releases on GitHub and notifies you when an update is available. Click the notification to download.
-
-### Tray-only — no clutter
-
-No taskbar icon, no dock entry. The app lives entirely in your system tray and only appears when you call it.
-
 ### Launch on startup
 
 Enable it once in Settings and the app is always ready when your computer starts.
@@ -65,6 +55,10 @@ Enable it once in Settings and the app is always ready when your computer starts
 ### Settings GUI
 
 Configure everything — server URL, API token, hotkeys, projects, filters — through a built-in settings window. No need to edit config files (though you can if you want to).
+
+![Slide2](https://github.com/user-attachments/assets/4b924b62-da9d-4a73-8875-fda38332e346)
+
+![Slide3](https://github.com/user-attachments/assets/0959e75b-b2c5-4ef4-8c45-215e6c82c8d4)
 
 ---
 
@@ -221,7 +215,9 @@ Uses [Electron Accelerator](https://www.electronjs.org/docs/latest/api/accelerat
 
 ## Roadmap
 
-<!-- Items to be added -->
+V3: Offline caching - currently you need an internet connection
+
+V4: Standalone mode - based on offline caching.
 
 ---
 
