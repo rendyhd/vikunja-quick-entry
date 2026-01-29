@@ -1,8 +1,8 @@
-# Vikunja Quick Entry
+# Vikunja Quick Entry Companion App
 
 **Capture tasks instantly. Check your list without breaking flow.**
 
-Vikunja is a powerful task manager — but sometimes you just need to jot down a thought before it slips away, or glance at what's due next without opening a browser. That's what this app does.
+Vikunja is a powerful task manager — but sometimes you just need to jot down a thought before it slips away, or glance at what's due next without opening a browser. That's what this companion app does.
 
 It lives in your system tray, stays out of the way, and is always one keystroke away. Great for meetings, calls, deep work, or any time you want to capture or check tasks without losing your place.
 
@@ -18,31 +18,17 @@ It lives in your system tray, stays out of the way, and is always one keystroke 
 
 ### Instant task capture with a global hotkey
 
-Press your hotkey from anywhere and a lightweight floating window appears. Type your task, hit Enter, and it's saved to Vikunja. The window disappears and focus returns to whatever you were doing. The whole interaction takes a few seconds.
+Press your hotkey from anywhere and a lightweight floating window appears. Type your task, hit Enter, and it's saved to Vikunja. The window disappears and focus returns to whatever you were doing. The whole interaction takes a few seconds. Including: 
+- Quick-schedule for today (by adding `!` anywhere in your task title)
+- Cycle between projects (with a keyboard shortcut while the Quick Entry window is open)
+- Optional description
 
 ### At-a-glance task list
 
 A second hotkey opens Quick View: a floating list of your upcoming tasks. See what's due, check off completed items, and close it. No need to open Vikunja in a browser just to see what's next.
-
-### Quick-schedule for today
-
-Add `!` anywhere in your task title and it's automatically scheduled for today. `Buy groceries!` becomes a task due today — no extra clicks or date pickers.
-
-### Cycle between projects
-
-Set up multiple projects and cycle through them with a keyboard shortcut while the Quick Entry window is open. Your default project is always one key combo away, with secondary projects in the order you choose.
-
-### Keyboard-driven Quick View
-
-Navigate tasks with arrow keys, complete them with Enter, undo with Enter again, or open a task in your browser with Shift+Enter. You never need to touch the mouse.
-
-### Color-coded due dates and priorities
-
-Quick View shows due dates with urgency at a glance — red for overdue, yellow for today, green for upcoming. Priority dots give you immediate visual context without reading a word.
-
-### Flexible filtering
-
-Configure Quick View to show tasks from specific projects, sorted by due date, priority, or title. Filter by due date range — overdue, today, this week, this month — so you see exactly what matters right now. Optionally include today's tasks from all projects even when filtering by project.
+- Keyboard-driven navigation (Navigate tasks with arrow keys, complete them with Enter, undo with Enter again, or open a task in your browser with Shift+Enter)
+- Color-coded due dates and priorities (red for overdue, yellow for today, green for upcoming)
+- Flexible filtering (select which projects and filter requirements)
 
 ### Frosted glass UI with dark mode
 
