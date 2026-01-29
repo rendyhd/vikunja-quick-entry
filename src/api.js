@@ -388,7 +388,7 @@ function fetchTasks(filterParams) {
   });
 }
 
-function markTaskDone(taskId) {
+function markTaskDone(taskId, taskData) {
   const config = getConfig();
   if (!config) {
     return Promise.resolve({ success: false, error: 'Configuration not loaded' });
@@ -401,7 +401,9 @@ function markTaskDone(taskId) {
     return Promise.resolve({ success: false, error: validation.error });
   }
 
-  const body = { done: true };
+  // Include original task data to prevent Vikunja from zeroing fields (Go zero-value problem).
+  // When only { done: true } is sent, fields like due_date and priority get reset to zero values.
+  const body = { ...taskData, done: true };
 
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
@@ -457,7 +459,7 @@ function markTaskDone(taskId) {
   });
 }
 
-function markTaskUndone(taskId) {
+function markTaskUndone(taskId, taskData) {
   const config = getConfig();
   if (!config) {
     return Promise.resolve({ success: false, error: 'Configuration not loaded' });
@@ -470,7 +472,9 @@ function markTaskUndone(taskId) {
     return Promise.resolve({ success: false, error: validation.error });
   }
 
-  const body = { done: false };
+  // Include original task data to restore all fields including due_date.
+  // Sending only { done: false } would leave fields zeroed from the markDone call.
+  const body = { ...taskData, done: false };
 
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {

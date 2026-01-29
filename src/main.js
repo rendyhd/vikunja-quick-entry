@@ -615,12 +615,12 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
   return fetchTasks(filterParams);
 });
 
-ipcMain.handle('mark-task-done', async (_event, taskId) => {
-  return markTaskDone(taskId);
+ipcMain.handle('mark-task-done', async (_event, taskId, taskData) => {
+  return markTaskDone(taskId, taskData);
 });
 
-ipcMain.handle('mark-task-undone', async (_event, taskId) => {
-  return markTaskUndone(taskId);
+ipcMain.handle('mark-task-undone', async (_event, taskId, taskData) => {
+  return markTaskUndone(taskId, taskData);
 });
 
 ipcMain.handle('open-task-in-browser', (_event, taskId) => {
