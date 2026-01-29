@@ -25,12 +25,12 @@ body {
 
 /* Container card */
 .container {
+  -webkit-app-region: drag;
   width: 100%;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.3);
   opacity: 0;
   transform: translateY(-4px);
@@ -43,8 +43,21 @@ body {
   transform: translateY(0);
 }
 
+/* Project hint (shown when cycling away from default) */
+.project-hint {
+  padding: 4px 20px 0;
+  font-size: 12px;
+  color: #7c6fa0;
+  font-style: italic;
+}
+
+.project-hint span {
+  font-weight: 500;
+}
+
 /* Task input */
 #task-input {
+  -webkit-app-region: no-drag;
   width: 100%;
   padding: 16px 20px;
   font-size: 18px;
@@ -93,6 +106,7 @@ body {
 
 /* Description textarea */
 .description-input {
+  -webkit-app-region: no-drag;
   width: 100%;
   padding: 8px 20px 12px;
   font-size: 14px;
@@ -125,9 +139,8 @@ body {
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .container {
-    background: rgba(30, 30, 30, 0.85);
+    background: rgba(30, 30, 30, 0.90);
     border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
   #task-input {
@@ -136,6 +149,10 @@ body {
 
   #task-input::placeholder {
     color: #666;
+  }
+
+  .project-hint {
+    color: #b0a0d0;
   }
 
   .description-hint {

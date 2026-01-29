@@ -66,6 +66,20 @@ function getConfig() {
     launch_on_startup: config.launch_on_startup === true,
     exclamation_today: config.exclamation_today !== false,
     auto_check_updates: config.auto_check_updates !== false,
+    // Quick Entry settings
+    project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
+    entry_position: config.entry_position || null,
+    // Quick View settings
+    viewer_hotkey: config.viewer_hotkey || 'Alt+Shift+B',
+    viewer_position: config.viewer_position || null,
+    viewer_filter: {
+      project_ids: (config.viewer_filter && config.viewer_filter.project_ids) || [],
+      sort_by: (config.viewer_filter && config.viewer_filter.sort_by) || 'due_date',
+      order_by: (config.viewer_filter && config.viewer_filter.order_by) || 'asc',
+      due_date_filter: (config.viewer_filter && config.viewer_filter.due_date_filter) || 'all',
+      include_today_all_projects: (config.viewer_filter && config.viewer_filter.include_today_all_projects) === true,
+    },
+    secondary_projects: Array.isArray(config.secondary_projects) ? config.secondary_projects : [],
   };
 }
 

@@ -52,6 +52,15 @@ jobs:
       - name: Build installer
         run: npm run make
 
+      - name: Rename macOS artifacts
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for f in out/make/*.dmg; do
+            mv "$f" "out/make/Vikunja-Quick-Entry-${VERSION}-arm64.dmg"
+          done
+
       - name: Rename Linux artifacts
         if: runner.os == 'Linux'
         shell: bash
