@@ -30,6 +30,15 @@ A second hotkey opens Quick View: a floating list of your upcoming tasks. See wh
 - Color-coded due dates and priorities (red for overdue, yellow for today, green for upcoming)
 - Flexible filtering (select which projects and filter requirements)
 
+### Standalone mode
+
+Use the app as a local task manager without any server connection. Enable it in Settings with a single checkbox — all tasks are stored locally on your device. No Vikunja account or server needed.
+
+- Tasks are saved to a local database (the offline cache)
+- Quick View reads from local storage — Shift+Enter expands task descriptions inline instead of opening a browser
+- Only one project (local) — no project configuration required
+- When you later connect to a server, you'll be prompted to upload your local tasks to your default Vikunja project
+
 ### Frosted glass UI with dark mode
 
 Translucent, blurred background that blends with your desktop. Automatically matches your system's light or dark theme.
@@ -113,7 +122,7 @@ Press your Quick Entry hotkey anywhere to create tasks. Press your Quick View ho
 |--------------|----------|
 | **Up/Down** | Navigate task list |
 | **Enter** | Complete selected task (or undo) |
-| **Shift+Enter** | Open selected task in browser |
+| **Shift+Enter** | Open selected task in browser (or expand description in standalone mode) |
 | **Escape** | Close the viewer |
 | **Click checkbox** | Mark task as done |
 | **Click task title** | Open task in browser |
@@ -138,6 +147,7 @@ Most users should use the built-in Settings window (right-click tray icon > **Se
 
 - **Quick Entry** — default project, secondary projects, hotkey, startup behavior, `!` scheduling, update checking
 - **Quick View** — viewer hotkey, project filter, sort order, due date filter, include-today toggle
+- **Standalone mode** — toggle at the top of Settings to switch between server-connected and offline-only mode
 
 ### Manual configuration
 
@@ -145,6 +155,7 @@ For advanced use or automation, edit `config.json` directly:
 
 ```json
 {
+  "standalone_mode": false,
   "vikunja_url": "https://app.vikunja.cloud",
   "api_token": "tk_your_api_token_here",
   "default_project_id": 2,
@@ -201,9 +212,9 @@ Uses [Electron Accelerator](https://www.electronjs.org/docs/latest/api/accelerat
 
 ## Roadmap
 
-V3: Offline caching - currently you need an internet connection
+~~V3: Offline caching~~ — Shipped
 
-V4: Standalone mode - based on offline caching.
+~~V4: Standalone mode~~ — Shipped
 
 ---
 
@@ -227,6 +238,7 @@ src/
   viewer-preload.js    # Preload for Quick View window
   settings-preload.js  # Preload for Settings window
   api.js               # Vikunja API calls (net.request with 5s timeout)
+  cache.js             # Offline sync queue, task caching, standalone storage
   config.js            # Config file loading/saving
   focus.js             # Focus-return helper (Windows)
   updater.js           # GitHub release checker (24h disk cache)
