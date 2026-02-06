@@ -18,9 +18,10 @@ function loadCache() {
       pendingActions: Array.isArray(cache.pendingActions) ? cache.pendingActions : [],
       cachedTasks: Array.isArray(cache.cachedTasks) ? cache.cachedTasks : null,
       cachedTasksTimestamp: cache.cachedTasksTimestamp || null,
+      standaloneTasks: Array.isArray(cache.standaloneTasks) ? cache.standaloneTasks : [],
     };
   } catch {
-    return { pendingActions: [], cachedTasks: null, cachedTasksTimestamp: null };
+    return { pendingActions: [], cachedTasks: null, cachedTasksTimestamp: null, standaloneTasks: [] };
   }
 }
 
@@ -159,6 +160,83 @@ function isAuthError(error) {
   );
 }
 
+// --- Standalone mode task storage ---
+
+/**
+ * Add a task to the local standalone store.
+ * Returns the created task object with a local ID.
+ */
+function addStandaloneTask(title, description, dueDate) {
+  const cache = loadCache();
+  const task = {
+    id: 'local_' + generateId(),
+    title,
+    description: description || '',
+    due_date: dueDate || '0001-01-01T00:00:00Z',
+    priority: 0,
+    done: false,
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+  };
+  cache.standaloneTasks.push(task);
+  saveCache(cache);
+  return task;
+}
+
+/**
+ * Get all open (not done) standalone tasks, sorted by created date.
+ */
+function getStandaloneTasks() {
+  const cache = loadCache();
+  return cache.standaloneTasks
+    .filter((t) => !t.done)
+    .sort((a, b) => new Date(a.created) - new Date(b.created))
+    .slice(0, 10);
+}
+
+/**
+ * Get all open standalone tasks (no limit) for upload purposes.
+ */
+function getAllStandaloneTasks() {
+  const cache = loadCache();
+  return cache.standaloneTasks.filter((t) => !t.done);
+}
+
+/**
+ * Mark a standalone task as done.
+ */
+function markStandaloneTaskDone(taskId) {
+  const cache = loadCache();
+  const task = cache.standaloneTasks.find((t) => t.id === taskId);
+  if (!task) return null;
+  task.done = true;
+  task.updated = new Date().toISOString();
+  saveCache(cache);
+  return task;
+}
+
+/**
+ * Mark a standalone task as not done (undo).
+ */
+function markStandaloneTaskUndone(taskId) {
+  const cache = loadCache();
+  const task = cache.standaloneTasks.find((t) => t.id === taskId);
+  if (!task) return null;
+  task.done = false;
+  task.updated = new Date().toISOString();
+  saveCache(cache);
+  return task;
+}
+
+/**
+ * Clear all standalone tasks (after successful upload to server).
+ */
+function clearStandaloneTasks() {
+  const cache = loadCache();
+  cache.standaloneTasks = [];
+  saveCache(cache);
+}
+
 module.exports = {
   addPendingAction,
   removePendingAction,
@@ -169,4 +247,10 @@ module.exports = {
   getCachedTasks,
   isRetriableError,
   isAuthError,
+  addStandaloneTask,
+  getStandaloneTasks,
+  getAllStandaloneTasks,
+  markStandaloneTaskDone,
+  markStandaloneTaskUndone,
+  clearStandaloneTasks,
 };

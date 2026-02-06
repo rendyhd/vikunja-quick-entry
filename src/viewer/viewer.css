@@ -60,6 +60,11 @@ body {
   color: #888;
 }
 
+.status-bar.standalone {
+  color: #4a90d9;
+  background: rgba(74, 144, 217, 0.06);
+}
+
 /* Task list */
 .task-list {
   max-height: 100%;
@@ -166,9 +171,39 @@ body {
   color: #4a90d9;
 }
 
+.task-title.standalone {
+  cursor: default;
+}
+
+.task-title.standalone:hover {
+  text-decoration: none;
+  color: #1a1a1a;
+}
+
 .task-item.completing .task-title {
   text-decoration: line-through;
   opacity: 0.5;
+}
+
+/* Task description (expandable in standalone mode) */
+.task-description {
+  -webkit-app-region: no-drag;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.task-description.hidden {
+  display: none;
 }
 
 /* Due date */
@@ -300,6 +335,10 @@ body {
     color: #5a9be6;
   }
 
+  .task-title.standalone:hover {
+    color: #f0f0f0;
+  }
+
   .task-due {
     color: #777;
   }
@@ -347,5 +386,15 @@ body {
 
   .status-bar.pending {
     color: #777;
+  }
+
+  .status-bar.standalone {
+    color: #5a9be6;
+    background: rgba(90, 155, 230, 0.08);
+  }
+
+  .task-description {
+    color: #999;
+    background: rgba(255, 255, 255, 0.04);
   }
 }

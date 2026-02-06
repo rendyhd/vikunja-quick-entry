@@ -5,6 +5,7 @@ const statusBar = document.getElementById('status-bar');
 
 let errorTimeout = null;
 let selectedIndex = -1;
+let isStandaloneMode = false;
 // Map of taskId -> original task data for undo
 const completedTasks = new Map();
 // Track which completions were cached (offline) vs synced
@@ -142,12 +143,14 @@ function buildTaskItemDOM(task) {
 
   // Title
   const title = document.createElement('div');
-  title.className = 'task-title';
+  title.className = 'task-title' + (isStandaloneMode ? ' standalone' : '');
   title.textContent = task.title;
-  title.addEventListener('click', (e) => {
-    e.stopPropagation();
-    window.viewerApi.openTaskInBrowser(task.id);
-  });
+  if (!isStandaloneMode) {
+    title.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.viewerApi.openTaskInBrowser(task.id);
+    });
+  }
   content.appendChild(title);
 
   // Due date
@@ -159,8 +162,25 @@ function buildTaskItemDOM(task) {
     content.appendChild(due);
   }
 
+  // Description (hidden by default, toggled with Shift+Enter in standalone mode)
+  if (task.description) {
+    const desc = document.createElement('div');
+    desc.className = 'task-description hidden';
+    desc.textContent = task.description;
+    content.appendChild(desc);
+  }
+
   item.appendChild(content);
   return item;
+}
+
+function toggleSelectedDescription() {
+  const items = getTaskItems();
+  if (selectedIndex < 0 || selectedIndex >= items.length) return;
+  const item = items[selectedIndex];
+  const desc = item.querySelector('.task-description');
+  if (!desc) return;
+  desc.classList.toggle('hidden');
 }
 
 function renderTasks(tasks) {
@@ -271,6 +291,13 @@ async function handleEnterOnSelected() {
   }
 }
 
+async function loadConfig() {
+  const cfg = await window.viewerApi.getConfig();
+  if (cfg) {
+    isStandaloneMode = cfg.standalone_mode === true;
+  }
+}
+
 async function loadTasks() {
   taskList.innerHTML = '<div class="loading">Loading tasks...</div>';
   hideStatusBar();
@@ -284,6 +311,8 @@ async function loadTasks() {
       // Show indicator that we're showing cached data
       const timeAgo = formatRelativeTime(result.cachedAt);
       showStatusBar(`Offline \u2014 cached ${timeAgo}`, 'offline');
+    } else if (result.standalone) {
+      showStatusBar('Standalone mode', 'standalone');
     } else {
       // Check for pending actions to show subtle indicator
       const pendingCount = await window.viewerApi.getPendingCount();
@@ -299,6 +328,7 @@ async function loadTasks() {
 
 // When the main process signals the window is shown
 window.viewerApi.onShowWindow(async () => {
+  await loadConfig();
   await loadTasks();
 
   // Trigger fade-in animation
@@ -335,7 +365,11 @@ document.addEventListener('keydown', (e) => {
 
   if (e.shiftKey && e.key === 'Enter') {
     e.preventDefault();
-    openSelectedTaskInBrowser();
+    if (isStandaloneMode) {
+      toggleSelectedDescription();
+    } else {
+      openSelectedTaskInBrowser();
+    }
     return;
   }
 
@@ -365,7 +399,8 @@ taskList.addEventListener('click', (e) => {
 });
 
 // Initial load
-requestAnimationFrame(() => {
+requestAnimationFrame(async () => {
+  await loadConfig();
   container.classList.add('visible');
   loadTasks();
 });

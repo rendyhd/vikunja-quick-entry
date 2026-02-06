@@ -71,6 +71,12 @@ const {
   getCachedTasks,
   isRetriableError,
   isAuthError,
+  addStandaloneTask,
+  getStandaloneTasks,
+  getAllStandaloneTasks,
+  markStandaloneTaskDone,
+  markStandaloneTaskUndone,
+  clearStandaloneTasks,
 } = require('./cache');
 
 // Ensure single instance
@@ -585,6 +591,12 @@ function stopSyncTimer() {
 
 // --- IPC Handlers ---
 ipcMain.handle('save-task', async (_event, title, description, dueDate, projectId) => {
+  // Standalone mode: store locally, no API calls
+  if (config && config.standalone_mode) {
+    const task = addStandaloneTask(title, description || null, dueDate || null);
+    return { success: true, task };
+  }
+
   const result = await createTask(title, description, dueDate, projectId);
 
   if (result.success) {
@@ -621,6 +633,7 @@ ipcMain.handle('get-config', () => {
         exclamation_today: config.exclamation_today,
         secondary_projects: config.secondary_projects || [],
         project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
+        standalone_mode: config.standalone_mode === true,
       }
     : null;
 });
@@ -639,21 +652,27 @@ ipcMain.handle('get-full-config', () => {
         viewer_filter: config.viewer_filter,
         secondary_projects: config.secondary_projects || [],
         project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
+        standalone_mode: config.standalone_mode === true,
       }
     : null;
 });
 
 ipcMain.handle('save-settings', async (_event, settings) => {
   try {
-    // Validate required fields
-    if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
-      return { success: false, error: 'URL, API token, and project are required.' };
+    const isStandalone = settings.standalone_mode === true;
+
+    // Validate required fields (relaxed in standalone mode)
+    if (!isStandalone) {
+      if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
+        return { success: false, error: 'URL, API token, and project are required.' };
+      }
     }
 
     const newConfig = {
-      vikunja_url: settings.vikunja_url.replace(/\/+$/, ''),
-      api_token: settings.api_token,
-      default_project_id: Number(settings.default_project_id),
+      standalone_mode: isStandalone,
+      vikunja_url: settings.vikunja_url ? settings.vikunja_url.replace(/\/+$/, '') : '',
+      api_token: settings.api_token || '',
+      default_project_id: settings.default_project_id ? Number(settings.default_project_id) : 0,
       hotkey: settings.hotkey || 'Alt+Shift+V',
       launch_on_startup: settings.launch_on_startup === true,
       exclamation_today: settings.exclamation_today !== false,
@@ -710,8 +729,13 @@ ipcMain.handle('save-settings', async (_event, settings) => {
     // Update tray menu (enable "Show Quick Entry" / "Show Quick View")
     updateTrayMenu();
 
-    // Ensure sync timer is running (may not be if this is first-time setup)
-    startSyncTimer();
+    if (isStandalone) {
+      // No sync in standalone mode
+      stopSyncTimer();
+    } else {
+      // Ensure sync timer is running (may not be if this is first-time setup)
+      startSyncTimer();
+    }
 
     return { success: true };
   } catch (err) {
@@ -734,6 +758,13 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
   if (!config) {
     return { success: false, error: 'Configuration not loaded' };
   }
+
+  // Standalone mode: read from local store
+  if (config.standalone_mode) {
+    const tasks = getStandaloneTasks();
+    return { success: true, tasks, standalone: true };
+  }
+
   const filterParams = {
     per_page: 10,
     page: 1,
@@ -772,6 +803,12 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
 });
 
 ipcMain.handle('mark-task-done', async (_event, taskId, taskData) => {
+  // Standalone mode: update local store
+  if (config && config.standalone_mode) {
+    const task = markStandaloneTaskDone(String(taskId));
+    return task ? { success: true, task } : { success: false, error: 'Task not found' };
+  }
+
   const result = await markTaskDone(taskId, taskData);
 
   if (result.success) {
@@ -793,6 +830,12 @@ ipcMain.handle('mark-task-done', async (_event, taskId, taskData) => {
 });
 
 ipcMain.handle('mark-task-undone', async (_event, taskId, taskData) => {
+  // Standalone mode: update local store
+  if (config && config.standalone_mode) {
+    const task = markStandaloneTaskUndone(String(taskId));
+    return task ? { success: true, task } : { success: false, error: 'Task not found' };
+  }
+
   // Check if there's a pending 'complete' for this task — if so, just cancel it
   const cancelled = removePendingActionByTaskId(taskId, 'complete');
   if (cancelled) {
@@ -825,7 +868,7 @@ ipcMain.handle('get-pending-count', () => {
 });
 
 ipcMain.handle('open-task-in-browser', (_event, taskId) => {
-  if (!config) return;
+  if (!config || config.standalone_mode) return;
   const url = `${config.vikunja_url}/tasks/${taskId}`;
   if (url.startsWith('https://') || url.startsWith('http://')) {
     shell.openExternal(url);
@@ -834,6 +877,45 @@ ipcMain.handle('open-task-in-browser', (_event, taskId) => {
 
 ipcMain.handle('close-viewer', () => {
   hideViewer();
+});
+
+// --- Standalone mode IPC ---
+ipcMain.handle('get-standalone-task-count', () => {
+  return getAllStandaloneTasks().length;
+});
+
+ipcMain.handle('upload-standalone-tasks', async (_event, url, token, projectId) => {
+  const tasks = getAllStandaloneTasks();
+  if (tasks.length === 0) {
+    return { success: true, uploaded: 0 };
+  }
+
+  let uploaded = 0;
+  const errors = [];
+
+  for (const task of tasks) {
+    const result = await createTask(task.title, task.description || null, task.due_date === '0001-01-01T00:00:00Z' ? null : task.due_date, projectId);
+    if (result.success) {
+      uploaded++;
+    } else {
+      errors.push(`"${task.title}": ${result.error}`);
+      // Stop on auth errors
+      if (result.error && isAuthError(result.error)) break;
+    }
+  }
+
+  if (uploaded > 0) {
+    // Clear only successfully uploaded tasks
+    if (uploaded === tasks.length) {
+      clearStandaloneTasks();
+    }
+  }
+
+  if (errors.length > 0) {
+    return { success: false, uploaded, error: errors[0], totalErrors: errors.length };
+  }
+
+  return { success: true, uploaded };
 });
 
 // --- App Lifecycle ---
@@ -861,10 +943,12 @@ app.on('ready', async () => {
   registerShortcuts();
   app.setLoginItemSettings({ openAtLogin: config.launch_on_startup });
 
-  // Start background sync for offline queue
-  startSyncTimer();
-  // Try to flush anything cached from a previous session
-  processPendingQueue();
+  if (!config.standalone_mode) {
+    // Start background sync for offline queue (not needed in standalone mode)
+    startSyncTimer();
+    // Try to flush anything cached from a previous session
+    processPendingQueue();
+  }
 });
 
 app.on('second-instance', () => {

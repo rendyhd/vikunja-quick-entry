@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('viewerApi', {
   openTaskInBrowser: (taskId) => ipcRenderer.invoke('open-task-in-browser', taskId),
   closeWindow: () => ipcRenderer.invoke('close-viewer'),
   getPendingCount: () => ipcRenderer.invoke('get-pending-count'),
+  getConfig: () => ipcRenderer.invoke('get-config'),
   onShowWindow: (callback) => {
     ipcRenderer.on('viewer-shown', callback);
   },
