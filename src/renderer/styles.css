@@ -136,6 +136,19 @@ body {
   opacity: 1;
 }
 
+/* Offline saved message (amber instead of red) */
+.error-message.offline {
+  color: #b7791f;
+}
+
+/* Pending sync indicator */
+.pending-indicator {
+  padding: 4px 20px 8px;
+  font-size: 11px;
+  color: #b7791f;
+  font-style: italic;
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .container {
@@ -174,5 +187,13 @@ body {
 
   .error-message {
     color: #fc8181;
+  }
+
+  .error-message.offline {
+    color: #ecc94b;
+  }
+
+  .pending-indicator {
+    color: #ecc94b;
   }
 }

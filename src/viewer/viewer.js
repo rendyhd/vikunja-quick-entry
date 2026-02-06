@@ -1,11 +1,14 @@
 const container = document.getElementById('container');
 const taskList = document.getElementById('task-list');
 const errorMessage = document.getElementById('error-message');
+const statusBar = document.getElementById('status-bar');
 
 let errorTimeout = null;
 let selectedIndex = -1;
 // Map of taskId -> original task data for undo
 const completedTasks = new Map();
+// Track which completions were cached (offline) vs synced
+const cachedCompletions = new Set();
 
 function showError(msg) {
   errorMessage.textContent = msg;
@@ -20,6 +23,29 @@ function showError(msg) {
       errorMessage.hidden = true;
     }, 200);
   }, 3000);
+}
+
+function showStatusBar(text, type) {
+  statusBar.textContent = text;
+  statusBar.className = 'status-bar ' + (type || '');
+  statusBar.classList.remove('hidden');
+}
+
+function hideStatusBar() {
+  statusBar.classList.add('hidden');
+}
+
+function formatRelativeTime(isoString) {
+  if (!isoString) return '';
+  const diff = Date.now() - new Date(isoString).getTime();
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 function getTaskItems() {
@@ -140,6 +166,7 @@ function buildTaskItemDOM(task) {
 function renderTasks(tasks) {
   taskList.innerHTML = '';
   completedTasks.clear();
+  cachedCompletions.clear();
   selectedIndex = -1;
 
   if (!tasks || tasks.length === 0) {
@@ -156,14 +183,18 @@ function renderTasks(tasks) {
   updateSelection(0);
 }
 
-function showCompletedMessage(item, taskId) {
+function showCompletedMessage(item, taskId, wasCached) {
   item.innerHTML = '';
   item.className = 'task-item completed-undo selected';
   item.dataset.taskId = taskId;
 
   const msg = document.createElement('span');
   msg.className = 'completed-message';
-  msg.textContent = 'Task completed \u2014 press Enter to undo';
+  if (wasCached) {
+    msg.textContent = 'Queued offline \u2014 press Enter to undo';
+  } else {
+    msg.textContent = 'Task completed \u2014 press Enter to undo';
+  }
   item.appendChild(msg);
 }
 
@@ -181,8 +212,13 @@ async function completeTask(taskId, itemElement, checkbox) {
     // Store ORIGINAL task data for undo (not from response which may have lost fields)
     completedTasks.set(String(taskId), originalTask);
 
+    const wasCached = !!result.cached;
+    if (wasCached) {
+      cachedCompletions.add(String(taskId));
+    }
+
     // Replace item content with undo message
-    showCompletedMessage(itemElement, taskId);
+    showCompletedMessage(itemElement, taskId, wasCached);
   } else {
     showError(result.error || 'Failed to complete task');
     if (checkbox) {
@@ -202,6 +238,7 @@ async function undoComplete(taskId, itemElement) {
     // Use stored original data (most reliable) or fall back to API response
     const taskData = storedTask || result.task || { id: taskId, title: 'Task' };
     completedTasks.delete(String(taskId));
+    cachedCompletions.delete(String(taskId));
 
     const newItem = buildTaskItemDOM(taskData);
     newItem.classList.add('selected');
@@ -236,11 +273,24 @@ async function handleEnterOnSelected() {
 
 async function loadTasks() {
   taskList.innerHTML = '<div class="loading">Loading tasks...</div>';
+  hideStatusBar();
 
   const result = await window.viewerApi.fetchTasks();
 
   if (result.success) {
     renderTasks(result.tasks);
+
+    if (result.cached) {
+      // Show indicator that we're showing cached data
+      const timeAgo = formatRelativeTime(result.cachedAt);
+      showStatusBar(`Offline \u2014 cached ${timeAgo}`, 'offline');
+    } else {
+      // Check for pending actions to show subtle indicator
+      const pendingCount = await window.viewerApi.getPendingCount();
+      if (pendingCount > 0) {
+        showStatusBar(`${pendingCount} action(s) pending sync`, 'pending');
+      }
+    }
   } else {
     taskList.innerHTML = '';
     showError(result.error || 'Failed to load tasks');
@@ -255,6 +305,12 @@ window.viewerApi.onShowWindow(async () => {
   container.classList.remove('visible');
   void container.offsetHeight;
   container.classList.add('visible');
+});
+
+// When background sync completes, refresh the task list if visible
+window.viewerApi.onSyncCompleted(async () => {
+  // Reload tasks to reflect synced state
+  await loadTasks();
 });
 
 // Keyboard handling

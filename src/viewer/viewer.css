@@ -43,6 +43,23 @@ body {
   transform: translateY(0);
 }
 
+/* Status bar (offline / pending sync indicator) */
+.status-bar {
+  padding: 5px 16px;
+  font-size: 11px;
+  font-style: italic;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.status-bar.offline {
+  color: #b7791f;
+  background: rgba(183, 121, 31, 0.06);
+}
+
+.status-bar.pending {
+  color: #888;
+}
+
 /* Task list */
 .task-list {
   max-height: 100%;
@@ -317,5 +334,18 @@ body {
 
   .task-list::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.25);
+  }
+
+  .status-bar {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .status-bar.offline {
+    color: #ecc94b;
+    background: rgba(236, 201, 75, 0.08);
+  }
+
+  .status-bar.pending {
+    color: #777;
   }
 }
