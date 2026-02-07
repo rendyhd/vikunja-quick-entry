@@ -15,6 +15,20 @@ const completedTasks = new Map();
 // Track which completions were cached (offline) vs synced
 const cachedCompletions = new Set();
 
+function measureContentHeight() {
+  let height = 2; // container border: 1px top + 1px bottom
+  if (!statusBar.classList.contains('hidden')) {
+    height += statusBar.offsetHeight;
+  }
+  for (const child of taskList.children) {
+    height += child.offsetHeight;
+  }
+  if (!errorMessage.hidden) {
+    height += errorMessage.offsetHeight;
+  }
+  return Math.max(60, Math.min(460, height));
+}
+
 function showError(msg) {
   errorMessage.textContent = msg;
   errorMessage.hidden = false;
@@ -271,6 +285,7 @@ async function completeTask(taskId, itemElement, checkbox) {
 
     // Replace item content with undo message
     showCompletedMessage(itemElement, taskId, wasCached);
+    window.viewerApi.setHeight(measureContentHeight());
   } else {
     showError(result.error || 'Failed to complete task');
     if (checkbox) {
@@ -297,6 +312,7 @@ async function undoComplete(taskId, itemElement) {
     const newItem = buildTaskItemDOM(taskData);
     newItem.classList.add('selected');
     itemElement.replaceWith(newItem);
+    window.viewerApi.setHeight(measureContentHeight());
   } else {
     showError(result.error || 'Failed to undo completion');
   }
@@ -546,7 +562,7 @@ async function loadTasks(forceRefresh = false) {
   const cacheValid = !forceRefresh && lastFetchResult && (now - lastFetchTime < CACHE_TTL_MS);
 
   if (cacheValid) {
-    applyFetchResult(lastFetchResult);
+    await applyFetchResult(lastFetchResult);
     return;
   }
 
@@ -560,7 +576,7 @@ async function loadTasks(forceRefresh = false) {
     lastFetchTime = Date.now();
   }
 
-  applyFetchResult(result);
+  await applyFetchResult(result);
 }
 
 async function applyFetchResult(result) {
@@ -584,6 +600,7 @@ async function applyFetchResult(result) {
     taskList.innerHTML = '';
     showError(result.error || 'Failed to load tasks');
   }
+  await window.viewerApi.setHeight(measureContentHeight());
 }
 
 // When the main process signals the window is shown

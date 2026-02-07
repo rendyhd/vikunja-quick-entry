@@ -98,6 +98,7 @@ let updateNotification = null;
 let syncTimer = null;
 let isSyncing = false;
 let isResettingViewerHeight = false;
+let viewerDesiredHeight = 460;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -254,7 +255,7 @@ function createViewerWindow() {
     resizable: true,
     minWidth: 300,
     maxWidth: 800,
-    minHeight: 460,
+    minHeight: 60,
     maxHeight: 460,
     show: false,
     webPreferences: {
@@ -290,14 +291,14 @@ function createViewerWindow() {
     config = getConfig();
   });
 
-  // Lock height to 460px — frameless transparent windows on Windows
+  // Lock height to desired value — frameless transparent windows on Windows
   // allow content-driven resizing that bypasses maxHeight constraints
   viewerWindow.on('resize', () => {
     if (isResettingViewerHeight) return;
     const [w, h] = viewerWindow.getSize();
-    if (h !== 460) {
+    if (h !== viewerDesiredHeight) {
       isResettingViewerHeight = true;
-      viewerWindow.setSize(w, 460);
+      viewerWindow.setSize(w, viewerDesiredHeight);
       isResettingViewerHeight = false;
     }
   });
@@ -305,10 +306,6 @@ function createViewerWindow() {
 
 function showViewer() {
   if (!viewerWindow) return;
-
-  // Reset height to fixed 460px (width may have been user-adjusted)
-  const [currentWidth] = viewerWindow.getSize();
-  viewerWindow.setSize(currentWidth, 460);
 
   if (config && config.viewer_position) {
     // Use saved position, but ensure it's on-screen
@@ -1001,6 +998,16 @@ ipcMain.handle('open-task-in-browser', (_event, taskId) => {
 
 ipcMain.handle('close-viewer', () => {
   hideViewer();
+});
+
+ipcMain.handle('set-viewer-height', (_event, height) => {
+  if (!viewerWindow || viewerWindow.isDestroyed()) return;
+  const clamped = Math.max(60, Math.min(460, Math.round(height)));
+  viewerDesiredHeight = clamped;
+  const [currentWidth] = viewerWindow.getSize();
+  isResettingViewerHeight = true;
+  viewerWindow.setSize(currentWidth, clamped);
+  isResettingViewerHeight = false;
 });
 
 // --- Standalone mode IPC ---
