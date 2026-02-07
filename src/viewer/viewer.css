@@ -179,6 +179,11 @@ body {
 .description-icon {
   -webkit-app-region: no-drag;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  min-height: 20px;
   font-size: 14px;
   line-height: 1.4;
   color: #aaa;

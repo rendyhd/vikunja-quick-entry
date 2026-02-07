@@ -166,7 +166,8 @@ function buildTaskItemDOM(task) {
     descIcon.className = 'description-icon';
     descIcon.title = 'Toggle description';
     descIcon.textContent = '\u2261'; // ≡ (triple bar / hamburger icon)
-    descIcon.addEventListener('click', (e) => {
+    descIcon.addEventListener('mousedown', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       const desc = item.querySelector('.task-description');
       if (desc) desc.classList.toggle('hidden');
@@ -404,7 +405,7 @@ function enterEditMode() {
 
   const hint = document.createElement('div');
   hint.className = 'task-edit-hint';
-  hint.textContent = 'Enter to save \u00b7 Esc to cancel';
+  hint.textContent = 'Enter to save \u00b7 Shift+Enter for new line \u00b7 Esc to cancel';
   editWrapper.appendChild(hint);
 
   item.appendChild(editWrapper);
@@ -429,7 +430,7 @@ function enterEditMode() {
 
   descTextarea.addEventListener('keydown', (e) => {
     e.stopPropagation();
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       saveEdit(item, titleInput.value, descTextarea.value);
     } else if (e.key === 'Escape') {
