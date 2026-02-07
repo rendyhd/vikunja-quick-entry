@@ -293,6 +293,10 @@ function createViewerWindow() {
 function showViewer() {
   if (!viewerWindow) return;
 
+  // Reset height to fixed 460px (width may have been user-adjusted)
+  const [currentWidth] = viewerWindow.getSize();
+  viewerWindow.setSize(currentWidth, 460);
+
   if (config && config.viewer_position) {
     // Use saved position, but ensure it's on-screen
     const displays = screen.getAllDisplays();
