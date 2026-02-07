@@ -190,6 +190,13 @@ function buildTaskItemDOM(task) {
     const desc = document.createElement('div');
     desc.className = 'task-description hidden';
     desc.textContent = task.description;
+    desc.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const items = getTaskItems();
+      const index = Array.from(items).indexOf(item);
+      if (index >= 0) updateSelection(index);
+      enterEditMode(true);
+    });
     content.appendChild(desc);
   }
 
@@ -366,7 +373,7 @@ async function toggleDueDate() {
 // --- Inline Editing ---
 let editingItem = null; // the .task-item currently in edit mode
 
-function enterEditMode() {
+function enterEditMode(focusDescription = false) {
   const items = getTaskItems();
   if (selectedIndex < 0 || selectedIndex >= items.length) return;
 
@@ -444,8 +451,13 @@ function enterEditMode() {
   titleInput.addEventListener('keypress', stopGlobal);
   descTextarea.addEventListener('keypress', stopGlobal);
 
-  titleInput.focus();
-  titleInput.select();
+  if (focusDescription) {
+    descTextarea.focus();
+    descTextarea.selectionStart = descTextarea.selectionEnd = descTextarea.value.length;
+  } else {
+    titleInput.focus();
+    titleInput.select();
+  }
 }
 
 async function saveEdit(item, newTitle, newDescription) {

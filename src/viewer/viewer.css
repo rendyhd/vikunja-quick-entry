@@ -36,6 +36,9 @@ body {
   transform: translateY(-4px);
   transition: opacity 150ms ease, transform 150ms ease;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
 }
 
 .container.visible {
@@ -67,7 +70,8 @@ body {
 
 /* Task list */
 .task-list {
-  max-height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -233,6 +237,11 @@ body {
   overflow-wrap: break-word;
   max-height: 120px;
   overflow-y: auto;
+  cursor: text;
+}
+
+.task-description:hover {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .task-description.hidden {
@@ -495,6 +504,10 @@ body {
   .task-description {
     color: #999;
     background: rgba(255, 255, 255, 0.04);
+  }
+
+  .task-description:hover {
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .description-icon {
