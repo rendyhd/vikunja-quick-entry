@@ -166,8 +166,7 @@ function buildTaskItemDOM(task) {
     descIcon.className = 'description-icon';
     descIcon.title = 'Toggle description';
     descIcon.textContent = '\u2261'; // ≡ (triple bar / hamburger icon)
-    descIcon.addEventListener('mousedown', (e) => {
-      e.preventDefault();
+    descIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       const desc = item.querySelector('.task-description');
       if (desc) desc.classList.toggle('hidden');
