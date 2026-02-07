@@ -113,6 +113,22 @@ function getCachedTasks() {
     (t) => !pendingCompleteIds.includes(String(t.id)),
   );
 
+  // Include tasks created offline (pending 'create' actions) so they appear in Quick View
+  const pendingCreates = cache.pendingActions
+    .filter((a) => a.type === 'create')
+    .map((a) => ({
+      id: `pending_${a.id}`,
+      title: a.title,
+      description: a.description || '',
+      due_date: a.dueDate || '0001-01-01T00:00:00Z',
+      priority: 0,
+      done: false,
+      created: a.createdAt,
+      updated: a.createdAt,
+    }));
+
+  tasks.push(...pendingCreates);
+
   return { tasks, timestamp: cache.cachedTasksTimestamp };
 }
 
