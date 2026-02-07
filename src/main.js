@@ -58,7 +58,7 @@ const {
 } = require('electron');
 const path = require('path');
 const { getConfig, saveConfig } = require('./config');
-const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate } = require('./api');
+const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate, updateTask } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
 const {
@@ -77,6 +77,8 @@ const {
   markStandaloneTaskDone,
   markStandaloneTaskUndone,
   scheduleStandaloneTaskToday,
+  removeStandaloneTaskDueDate,
+  updateStandaloneTask,
   clearStandaloneTasks,
 } = require('./cache');
 
@@ -526,7 +528,11 @@ async function processPendingQueue() {
             result = await markTaskUndone(action.taskId, action.taskData);
             break;
           case 'schedule-today':
+          case 'remove-due-date':
             result = await updateTaskDueDate(action.taskId, action.taskData, action.dueDate);
+            break;
+          case 'update-task':
+            result = await updateTask(action.taskId, action.taskData);
             break;
           default:
             // Unknown action type, remove it
@@ -890,6 +896,63 @@ ipcMain.handle('schedule-task-today', async (_event, taskId, taskData) => {
       taskId,
       taskData,
       dueDate,
+    });
+    return { success: true, cached: true };
+  }
+
+  return result;
+});
+
+ipcMain.handle('update-task', async (_event, taskId, taskData) => {
+  // Standalone mode: update local store
+  if (config && config.standalone_mode) {
+    const task = updateStandaloneTask(String(taskId), taskData);
+    return task ? { success: true, task } : { success: false, error: 'Task not found' };
+  }
+
+  const result = await updateTask(taskId, taskData);
+
+  if (result.success) {
+    processPendingQueue();
+    return result;
+  }
+
+  // Network error — cache for later sync
+  if (isRetriableError(result.error)) {
+    addPendingAction({
+      type: 'update-task',
+      taskId,
+      taskData,
+    });
+    return { success: true, cached: true };
+  }
+
+  return result;
+});
+
+ipcMain.handle('remove-task-due-date', async (_event, taskId, taskData) => {
+  const nullDate = '0001-01-01T00:00:00Z';
+
+  // Standalone mode: update local store
+  if (config && config.standalone_mode) {
+    const task = removeStandaloneTaskDueDate(String(taskId));
+    return task ? { success: true, task } : { success: false, error: 'Task not found' };
+  }
+
+  const result = await updateTaskDueDate(taskId, taskData, nullDate);
+
+  if (result.success) {
+    processPendingQueue();
+    return result;
+  }
+
+  // Network error — cache for later sync
+  if (isRetriableError(result.error)) {
+    addPendingAction({
+      type: 'remove-due-date',
+      taskId,
+      taskData,
+      dueDate: nullDate,
     });
     return { success: true, cached: true };
   }

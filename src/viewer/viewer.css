@@ -156,6 +156,13 @@ body {
   gap: 2px;
 }
 
+/* Title row: title + description icon */
+.task-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
 .task-title {
   -webkit-app-region: no-drag;
   font-size: 14px;
@@ -164,6 +171,26 @@ body {
   word-wrap: break-word;
   overflow-wrap: break-word;
   cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Description indicator icon */
+.description-icon {
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #aaa;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 150ms;
+  user-select: none;
+}
+
+.description-icon:hover {
+  opacity: 1;
+  color: #4a90d9;
 }
 
 .task-title:hover {
@@ -247,6 +274,62 @@ body {
 /* Selected task */
 .task-item.selected {
   background: rgba(74, 144, 217, 0.10);
+}
+
+/* Inline edit mode */
+.task-item.editing {
+  border-left: 3px solid #4a90d9;
+  padding-left: 13px;
+}
+
+.task-edit-wrapper {
+  -webkit-app-region: no-drag;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.task-edit-title {
+  font-size: 14px;
+  font-family: inherit;
+  color: #1a1a1a;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  padding: 4px 6px;
+  width: 100%;
+  outline: none;
+}
+
+.task-edit-title:focus {
+  border-color: #4a90d9;
+}
+
+.task-edit-description {
+  font-size: 12px;
+  font-family: inherit;
+  color: #666;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  padding: 6px 8px;
+  width: 100%;
+  resize: vertical;
+  min-height: 40px;
+  max-height: 120px;
+  outline: none;
+  line-height: 1.4;
+}
+
+.task-edit-description:focus {
+  border-color: #4a90d9;
+}
+
+.task-edit-hint {
+  font-size: 10px;
+  color: #aaa;
+  text-align: right;
 }
 
 /* Completed undo message */
@@ -406,5 +489,40 @@ body {
   .task-description {
     color: #999;
     background: rgba(255, 255, 255, 0.04);
+  }
+
+  .description-icon {
+    color: #666;
+  }
+
+  .description-icon:hover {
+    color: #5a9be6;
+  }
+
+  .task-item.editing {
+    border-left-color: #5a9be6;
+  }
+
+  .task-edit-title {
+    color: #f0f0f0;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .task-edit-title:focus {
+    border-color: #5a9be6;
+  }
+
+  .task-edit-description {
+    color: #999;
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .task-edit-description:focus {
+    border-color: #5a9be6;
+  }
+
+  .task-edit-hint {
+    color: #555;
   }
 }

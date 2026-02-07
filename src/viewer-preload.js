@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('viewerApi', {
   markTaskDone: (taskId, taskData) => ipcRenderer.invoke('mark-task-done', taskId, taskData),
   markTaskUndone: (taskId, taskData) => ipcRenderer.invoke('mark-task-undone', taskId, taskData),
   scheduleTaskToday: (taskId, taskData) => ipcRenderer.invoke('schedule-task-today', taskId, taskData),
+  removeDueDate: (taskId, taskData) => ipcRenderer.invoke('remove-task-due-date', taskId, taskData),
+  updateTask: (taskId, taskData) => ipcRenderer.invoke('update-task', taskId, taskData),
   openTaskInBrowser: (taskId) => ipcRenderer.invoke('open-task-in-browser', taskId),
   closeWindow: () => ipcRenderer.invoke('close-viewer'),
   getPendingCount: () => ipcRenderer.invoke('get-pending-count'),

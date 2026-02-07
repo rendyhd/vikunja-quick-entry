@@ -145,7 +145,10 @@ function buildTaskItemDOM(task) {
   const content = document.createElement('div');
   content.className = 'task-content';
 
-  // Title
+  // Title row (title + description icon)
+  const titleRow = document.createElement('div');
+  titleRow.className = 'task-title-row';
+
   const title = document.createElement('div');
   title.className = 'task-title' + (isStandaloneMode ? ' standalone' : '');
   title.textContent = task.title;
@@ -155,7 +158,23 @@ function buildTaskItemDOM(task) {
       window.viewerApi.openTaskInBrowser(task.id);
     });
   }
-  content.appendChild(title);
+  titleRow.appendChild(title);
+
+  // Description indicator icon
+  if (task.description) {
+    const descIcon = document.createElement('span');
+    descIcon.className = 'description-icon';
+    descIcon.title = 'Toggle description';
+    descIcon.textContent = '\u2261'; // ≡ (triple bar / hamburger icon)
+    descIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const desc = item.querySelector('.task-description');
+      if (desc) desc.classList.toggle('hidden');
+    });
+    titleRow.appendChild(descIcon);
+  }
+
+  content.appendChild(titleRow);
 
   // Due date
   const dueInfo = formatDueDate(task.due_date);
@@ -166,7 +185,7 @@ function buildTaskItemDOM(task) {
     content.appendChild(due);
   }
 
-  // Description (hidden by default, toggled with Shift+Enter in standalone mode)
+  // Description (hidden by default, toggled with Shift+Enter or icon click)
   if (task.description) {
     const desc = document.createElement('div');
     desc.className = 'task-description hidden';
@@ -276,51 +295,208 @@ async function undoComplete(taskId, itemElement) {
   }
 }
 
-async function scheduleTaskToday() {
+async function toggleDueDate() {
   const items = getTaskItems();
   if (selectedIndex < 0 || selectedIndex >= items.length) return;
 
   const item = items[selectedIndex];
-  // Don't schedule completed/undo items
+  // Don't modify completed/undo items
   if (item.classList.contains('completed-undo')) return;
 
   const taskId = item.dataset.taskId;
   const taskData = JSON.parse(item.dataset.task || '{}');
 
-  const result = await window.viewerApi.scheduleTaskToday(taskId, taskData);
+  const hasDueDate = taskData.due_date && taskData.due_date !== '0001-01-01T00:00:00Z';
 
-  if (result.success) {
-    // Invalidate cache so next open fetches fresh data
-    lastFetchResult = null;
+  if (hasDueDate) {
+    // Remove due date
+    const result = await window.viewerApi.removeDueDate(taskId, taskData);
 
-    // Update the due date in the stored task data
-    const now = new Date();
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
-    taskData.due_date = todayEnd;
-    item.dataset.task = JSON.stringify(taskData);
+    if (result.success) {
+      lastFetchResult = null;
 
-    // Update the due date badge in the DOM
-    const content = item.querySelector('.task-content');
-    let dueEl = item.querySelector('.task-due');
-    if (dueEl) {
-      dueEl.textContent = 'Today';
-      dueEl.className = 'task-due today';
-    } else if (content) {
-      // Task had no due date — create the badge
-      dueEl = document.createElement('div');
-      dueEl.className = 'task-due today';
-      dueEl.textContent = 'Today';
-      // Insert after .task-title
-      const titleEl = content.querySelector('.task-title');
-      if (titleEl && titleEl.nextSibling) {
-        content.insertBefore(dueEl, titleEl.nextSibling);
-      } else {
-        content.appendChild(dueEl);
-      }
+      // Update stored task data
+      taskData.due_date = '0001-01-01T00:00:00Z';
+      item.dataset.task = JSON.stringify(taskData);
+
+      // Remove the due date element from the DOM
+      const dueEl = item.querySelector('.task-due');
+      if (dueEl) dueEl.remove();
+    } else {
+      showError(result.error || 'Failed to remove due date');
     }
   } else {
-    showError(result.error || 'Failed to schedule task');
+    // Schedule to today (existing behavior)
+    const result = await window.viewerApi.scheduleTaskToday(taskId, taskData);
+
+    if (result.success) {
+      lastFetchResult = null;
+
+      // Update the due date in the stored task data
+      const now = new Date();
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+      taskData.due_date = todayEnd;
+      item.dataset.task = JSON.stringify(taskData);
+
+      // Update the due date badge in the DOM
+      const content = item.querySelector('.task-content');
+      let dueEl = item.querySelector('.task-due');
+      if (dueEl) {
+        dueEl.textContent = 'Today';
+        dueEl.className = 'task-due today';
+      } else if (content) {
+        // Task had no due date — create the badge
+        dueEl = document.createElement('div');
+        dueEl.className = 'task-due today';
+        dueEl.textContent = 'Today';
+        // Insert after .task-title-row
+        const titleRow = content.querySelector('.task-title-row');
+        if (titleRow && titleRow.nextSibling) {
+          content.insertBefore(dueEl, titleRow.nextSibling);
+        } else {
+          content.appendChild(dueEl);
+        }
+      }
+    } else {
+      showError(result.error || 'Failed to schedule task');
+    }
   }
+}
+
+// --- Inline Editing ---
+let editingItem = null; // the .task-item currently in edit mode
+
+function enterEditMode() {
+  const items = getTaskItems();
+  if (selectedIndex < 0 || selectedIndex >= items.length) return;
+
+  const item = items[selectedIndex];
+  if (item.classList.contains('completed-undo')) return;
+  if (item.classList.contains('editing')) return;
+
+  const taskData = JSON.parse(item.dataset.task || '{}');
+  editingItem = item;
+  item.classList.add('editing');
+
+  // Save original content for cancel
+  item._originalHTML = item.innerHTML;
+
+  // Build edit UI
+  item.innerHTML = '';
+
+  const editWrapper = document.createElement('div');
+  editWrapper.className = 'task-edit-wrapper';
+
+  const titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.className = 'task-edit-title';
+  titleInput.value = taskData.title || '';
+  titleInput.placeholder = 'Task title';
+
+  const descTextarea = document.createElement('textarea');
+  descTextarea.className = 'task-edit-description';
+  descTextarea.value = taskData.description || '';
+  descTextarea.placeholder = 'Description (optional)';
+  descTextarea.rows = 3;
+
+  editWrapper.appendChild(titleInput);
+  editWrapper.appendChild(descTextarea);
+
+  const hint = document.createElement('div');
+  hint.className = 'task-edit-hint';
+  hint.textContent = 'Enter to save \u00b7 Esc to cancel';
+  editWrapper.appendChild(hint);
+
+  item.appendChild(editWrapper);
+
+  // Stop propagation on inputs so global keyboard handlers don't interfere
+  const stopGlobal = (e) => {
+    e.stopPropagation();
+  };
+  titleInput.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveEdit(item, titleInput.value, descTextarea.value);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit(item);
+    } else if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      descTextarea.focus();
+    }
+  });
+
+  descTextarea.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit(item, titleInput.value, descTextarea.value);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit(item);
+    } else if (e.key === 'Tab' && e.shiftKey) {
+      e.preventDefault();
+      titleInput.focus();
+    }
+  });
+
+  titleInput.addEventListener('keypress', stopGlobal);
+  descTextarea.addEventListener('keypress', stopGlobal);
+
+  titleInput.focus();
+  titleInput.select();
+}
+
+async function saveEdit(item, newTitle, newDescription) {
+  const trimmedTitle = newTitle.trim();
+  if (!trimmedTitle) {
+    showError('Title cannot be empty');
+    return;
+  }
+
+  const taskId = item.dataset.taskId;
+  const taskData = JSON.parse(item.dataset.task || '{}');
+
+  // Build updated task data (include all original fields to prevent zero-value problem)
+  const updatedData = { ...taskData, title: trimmedTitle, description: newDescription };
+
+  const result = await window.viewerApi.updateTask(taskId, updatedData);
+
+  if (result.success) {
+    lastFetchResult = null;
+
+    // Update stored task data
+    taskData.title = trimmedTitle;
+    taskData.description = newDescription;
+    item.dataset.task = JSON.stringify(taskData);
+
+    // Rebuild the task DOM
+    exitEditMode(item);
+    const newItem = buildTaskItemDOM(taskData);
+    newItem.classList.add('selected');
+    newItem.dataset.taskId = item.dataset.taskId;
+    newItem.dataset.task = item.dataset.task;
+    item.replaceWith(newItem);
+    editingItem = null;
+  } else {
+    showError(result.error || 'Failed to update task');
+  }
+}
+
+function cancelEdit(item) {
+  if (item._originalHTML) {
+    item.innerHTML = item._originalHTML;
+    delete item._originalHTML;
+  }
+  item.classList.remove('editing');
+  editingItem = null;
+}
+
+function exitEditMode(item) {
+  delete item._originalHTML;
+  item.classList.remove('editing');
+  editingItem = null;
 }
 
 function openSelectedTaskInBrowser() {
@@ -417,6 +593,15 @@ window.viewerApi.onSyncCompleted(async () => {
 
 // Keyboard handling
 document.addEventListener('keydown', (e) => {
+  // If in edit mode, only handle Escape at the document level (inputs handle the rest)
+  if (editingItem) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit(editingItem);
+    }
+    return;
+  }
+
   if (e.key === 'Escape') {
     e.preventDefault();
     window.viewerApi.closeWindow();
@@ -435,6 +620,12 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    enterEditMode();
+    return;
+  }
+
   if (e.shiftKey && e.key === 'Enter') {
     e.preventDefault();
     toggleSelectedDescription();
@@ -443,7 +634,7 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === '!') {
     e.preventDefault();
-    scheduleTaskToday();
+    toggleDueDate();
     return;
   }
 

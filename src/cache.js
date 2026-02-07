@@ -258,6 +258,27 @@ function scheduleStandaloneTaskToday(taskId) {
   return task;
 }
 
+function removeStandaloneTaskDueDate(taskId) {
+  const cache = loadCache();
+  const task = cache.standaloneTasks.find((t) => t.id === taskId);
+  if (!task) return null;
+  task.due_date = '0001-01-01T00:00:00Z';
+  task.updated = new Date().toISOString();
+  saveCache(cache);
+  return task;
+}
+
+function updateStandaloneTask(taskId, updates) {
+  const cache = loadCache();
+  const task = cache.standaloneTasks.find((t) => t.id === taskId);
+  if (!task) return null;
+  if (updates.title !== undefined) task.title = updates.title;
+  if (updates.description !== undefined) task.description = updates.description;
+  task.updated = new Date().toISOString();
+  saveCache(cache);
+  return task;
+}
+
 /**
  * Clear all standalone tasks (after successful upload to server).
  */
@@ -283,5 +304,7 @@ module.exports = {
   markStandaloneTaskDone,
   markStandaloneTaskUndone,
   scheduleStandaloneTaskToday,
+  removeStandaloneTaskDueDate,
+  updateStandaloneTask,
   clearStandaloneTasks,
 };
