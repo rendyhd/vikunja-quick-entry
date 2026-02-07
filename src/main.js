@@ -770,7 +770,7 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
   }
 
   const filterParams = {
-    per_page: -1,
+    per_page: 10000,
     page: 1,
     project_ids: config.viewer_filter.project_ids,
     sort_by: config.viewer_filter.sort_by,
