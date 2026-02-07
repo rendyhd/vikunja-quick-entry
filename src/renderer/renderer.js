@@ -7,6 +7,8 @@ const todayHintInline = document.getElementById('today-hint-inline');
 const todayHintBelow = document.getElementById('today-hint-below');
 const projectHint = document.getElementById('project-hint');
 const projectName = document.getElementById('project-name');
+const pendingIndicator = document.getElementById('pending-indicator');
+const pendingCount = document.getElementById('pending-count');
 
 let errorTimeout = null;
 let exclamationTodayEnabled = true;
@@ -31,9 +33,28 @@ function showError(msg) {
   }, 3000);
 }
 
+function showOfflineMessage() {
+  errorMessage.textContent = 'Saved offline \u2014 will sync when connected';
+  errorMessage.hidden = false;
+  errorMessage.classList.add('offline');
+
+  void errorMessage.offsetHeight;
+  errorMessage.classList.add('show');
+
+  clearTimeout(errorTimeout);
+  errorTimeout = setTimeout(() => {
+    errorMessage.classList.remove('show');
+    setTimeout(() => {
+      errorMessage.hidden = true;
+      errorMessage.classList.remove('offline');
+      window.api.closeWindow();
+    }, 200);
+  }, 1200);
+}
+
 function clearError() {
   clearTimeout(errorTimeout);
-  errorMessage.classList.remove('show');
+  errorMessage.classList.remove('show', 'offline');
   errorMessage.hidden = true;
 }
 
@@ -67,6 +88,16 @@ function updateTodayHints() {
   } else {
     todayHintInline.classList.add('hidden');
     todayHintBelow.classList.add('hidden');
+  }
+}
+
+async function updatePendingIndicator() {
+  const count = await window.api.getPendingCount();
+  if (count > 0) {
+    pendingCount.textContent = count;
+    pendingIndicator.classList.remove('hidden');
+  } else {
+    pendingIndicator.classList.add('hidden');
   }
 }
 
@@ -146,7 +177,12 @@ async function saveTask() {
   const result = await window.api.saveTask(title, description, dueDate, projectId);
 
   if (result.success) {
-    window.api.closeWindow();
+    if (result.cached) {
+      // Task saved to offline cache — show brief indicator then close
+      showOfflineMessage();
+    } else {
+      window.api.closeWindow();
+    }
   } else {
     showError(result.error || 'Failed to save task');
     input.disabled = false;
@@ -174,12 +210,20 @@ window.api.onShowWindow(async () => {
     buildProjectCycle(cfg);
   }
 
+  // Update pending sync indicator
+  await updatePendingIndicator();
+
   input.focus();
 
   // Trigger fade-in animation
   container.classList.remove('visible');
   void container.offsetHeight;
   container.classList.add('visible');
+});
+
+// When background sync completes, update the pending count
+window.api.onSyncCompleted(async () => {
+  await updatePendingIndicator();
 });
 
 // Keyboard handling on title input
@@ -254,6 +298,8 @@ async function loadConfig() {
     projectCycleModifier = cfg.project_cycle_modifier || 'ctrl';
     buildProjectCycle(cfg);
   }
+  // Show pending count on initial load
+  await updatePendingIndicator();
 }
 loadConfig();
 

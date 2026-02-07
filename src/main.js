@@ -61,6 +61,23 @@ const { getConfig, saveConfig } = require('./config');
 const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
+const {
+  addPendingAction,
+  removePendingAction,
+  removePendingActionByTaskId,
+  getPendingActions,
+  getPendingCount,
+  setCachedTasks,
+  getCachedTasks,
+  isRetriableError,
+  isAuthError,
+  addStandaloneTask,
+  getStandaloneTasks,
+  getAllStandaloneTasks,
+  markStandaloneTaskDone,
+  markStandaloneTaskUndone,
+  clearStandaloneTasks,
+} = require('./cache');
 
 // Ensure single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -75,6 +92,8 @@ let tray = null;
 let config = null;
 let updateInfo = null;
 let updateNotification = null;
+let syncTimer = null;
+let isSyncing = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -189,6 +208,9 @@ function showWindow() {
   mainWindow.show();
   mainWindow.focus();
   mainWindow.webContents.send('window-shown');
+
+  // Opportunistically try to sync pending queue when user activates window
+  processPendingQueue();
 }
 
 function centerEntryWindow() {
@@ -289,6 +311,9 @@ function showViewer() {
   viewerWindow.show();
   viewerWindow.focus();
   viewerWindow.webContents.send('viewer-shown');
+
+  // Opportunistically try to sync pending queue when user activates viewer
+  processPendingQueue();
 }
 
 function centerViewer() {
@@ -476,9 +501,124 @@ function registerShortcuts() {
   return allOk;
 }
 
+// --- Offline Sync Processor ---
+async function processPendingQueue() {
+  if (isSyncing) return;
+  const pending = getPendingActions();
+  if (pending.length === 0) return;
+
+  isSyncing = true;
+  let syncedAny = false;
+
+  try {
+    for (const action of pending) {
+      let result;
+      try {
+        switch (action.type) {
+          case 'create':
+            result = await createTask(action.title, action.description, action.dueDate, action.projectId);
+            break;
+          case 'complete':
+            result = await markTaskDone(action.taskId, action.taskData);
+            break;
+          case 'uncomplete':
+            result = await markTaskUndone(action.taskId, action.taskData);
+            break;
+          default:
+            // Unknown action type, remove it
+            removePendingAction(action.id);
+            continue;
+        }
+      } catch (err) {
+        // Unexpected error, treat as retriable
+        break;
+      }
+
+      if (result.success) {
+        removePendingAction(action.id);
+        syncedAny = true;
+      } else if (result.error && isAuthError(result.error)) {
+        // Auth error — stop processing but keep actions (user needs to fix token)
+        break;
+      } else if (result.error && isRetriableError(result.error)) {
+        // Network still down — stop processing, retry later
+        break;
+      } else {
+        // Permanent error (404, 400, etc.) — discard action
+        removePendingAction(action.id);
+        syncedAny = true;
+      }
+    }
+  } finally {
+    isSyncing = false;
+  }
+
+  // Notify renderers so they can update pending counts / refresh
+  if (syncedAny) {
+    notifyRenderersSyncCompleted();
+  }
+}
+
+function notifyRenderersSyncCompleted() {
+  // Always notify entry window (lightweight — just updates pending count badge)
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('sync-completed');
+    }
+  } catch { /* ignore */ }
+  // Only notify viewer if visible (triggers a full task reload)
+  try {
+    if (viewerWindow && !viewerWindow.isDestroyed() && viewerWindow.isVisible()) {
+      viewerWindow.webContents.send('sync-completed');
+    }
+  } catch { /* ignore */ }
+}
+
+function startSyncTimer() {
+  if (syncTimer) return;
+  // Try to sync pending actions every 30 seconds
+  syncTimer = setInterval(() => {
+    processPendingQueue();
+  }, 30000);
+}
+
+function stopSyncTimer() {
+  if (syncTimer) {
+    clearInterval(syncTimer);
+    syncTimer = null;
+  }
+}
+
 // --- IPC Handlers ---
 ipcMain.handle('save-task', async (_event, title, description, dueDate, projectId) => {
-  return createTask(title, description, dueDate, projectId);
+  // Standalone mode: store locally, no API calls
+  if (config && config.standalone_mode) {
+    const task = addStandaloneTask(title, description || null, dueDate || null);
+    return { success: true, task };
+  }
+
+  const result = await createTask(title, description, dueDate, projectId);
+
+  if (result.success) {
+    // Task saved to server — also try to flush pending queue
+    processPendingQueue();
+    return result;
+  }
+
+  // If it's a network/retriable error, cache the task for later sync
+  if (isRetriableError(result.error)) {
+    addPendingAction({
+      type: 'create',
+      title,
+      description: description || null,
+      dueDate: dueDate || null,
+      projectId: projectId || null,
+    });
+    return { success: true, cached: true };
+  }
+
+  // Permanent error (auth, validation, etc.) — return as-is
+  return result;
 });
 
 ipcMain.handle('close-window', () => {
@@ -493,6 +633,7 @@ ipcMain.handle('get-config', () => {
         exclamation_today: config.exclamation_today,
         secondary_projects: config.secondary_projects || [],
         project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
+        standalone_mode: config.standalone_mode === true,
       }
     : null;
 });
@@ -511,21 +652,27 @@ ipcMain.handle('get-full-config', () => {
         viewer_filter: config.viewer_filter,
         secondary_projects: config.secondary_projects || [],
         project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
+        standalone_mode: config.standalone_mode === true,
       }
     : null;
 });
 
 ipcMain.handle('save-settings', async (_event, settings) => {
   try {
-    // Validate required fields
-    if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
-      return { success: false, error: 'URL, API token, and project are required.' };
+    const isStandalone = settings.standalone_mode === true;
+
+    // Validate required fields (relaxed in standalone mode)
+    if (!isStandalone) {
+      if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
+        return { success: false, error: 'URL, API token, and project are required.' };
+      }
     }
 
     const newConfig = {
-      vikunja_url: settings.vikunja_url.replace(/\/+$/, ''),
-      api_token: settings.api_token,
-      default_project_id: Number(settings.default_project_id),
+      standalone_mode: isStandalone,
+      vikunja_url: settings.vikunja_url ? settings.vikunja_url.replace(/\/+$/, '') : '',
+      api_token: settings.api_token || '',
+      default_project_id: settings.default_project_id ? Number(settings.default_project_id) : 0,
       hotkey: settings.hotkey || 'Alt+Shift+V',
       launch_on_startup: settings.launch_on_startup === true,
       exclamation_today: settings.exclamation_today !== false,
@@ -582,6 +729,14 @@ ipcMain.handle('save-settings', async (_event, settings) => {
     // Update tray menu (enable "Show Quick Entry" / "Show Quick View")
     updateTrayMenu();
 
+    if (isStandalone) {
+      // No sync in standalone mode
+      stopSyncTimer();
+    } else {
+      // Ensure sync timer is running (may not be if this is first-time setup)
+      startSyncTimer();
+    }
+
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message || 'Failed to save settings' };
@@ -603,6 +758,13 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
   if (!config) {
     return { success: false, error: 'Configuration not loaded' };
   }
+
+  // Standalone mode: read from local store
+  if (config.standalone_mode) {
+    const tasks = getStandaloneTasks();
+    return { success: true, tasks, standalone: true };
+  }
+
   const filterParams = {
     per_page: 10,
     page: 1,
@@ -612,19 +774,101 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
     due_date_filter: config.viewer_filter.due_date_filter,
     include_today_all_projects: config.viewer_filter.include_today_all_projects,
   };
-  return fetchTasks(filterParams);
+
+  const result = await fetchTasks(filterParams);
+
+  if (result.success) {
+    // Cache the fresh task list for offline use
+    setCachedTasks(result.tasks);
+    // Also try to flush any pending actions while we have connectivity
+    processPendingQueue();
+    return result;
+  }
+
+  // API failed — serve cached tasks if available
+  if (isRetriableError(result.error)) {
+    const cached = getCachedTasks();
+    if (cached.tasks) {
+      return {
+        success: true,
+        tasks: cached.tasks,
+        cached: true,
+        cachedAt: cached.timestamp,
+      };
+    }
+  }
+
+  // No cache available, or permanent error
+  return result;
 });
 
 ipcMain.handle('mark-task-done', async (_event, taskId, taskData) => {
-  return markTaskDone(taskId, taskData);
+  // Standalone mode: update local store
+  if (config && config.standalone_mode) {
+    const task = markStandaloneTaskDone(String(taskId));
+    return task ? { success: true, task } : { success: false, error: 'Task not found' };
+  }
+
+  const result = await markTaskDone(taskId, taskData);
+
+  if (result.success) {
+    processPendingQueue();
+    return result;
+  }
+
+  // Network error — cache the completion for later sync
+  if (isRetriableError(result.error)) {
+    addPendingAction({
+      type: 'complete',
+      taskId,
+      taskData,
+    });
+    return { success: true, cached: true };
+  }
+
+  return result;
 });
 
 ipcMain.handle('mark-task-undone', async (_event, taskId, taskData) => {
-  return markTaskUndone(taskId, taskData);
+  // Standalone mode: update local store
+  if (config && config.standalone_mode) {
+    const task = markStandaloneTaskUndone(String(taskId));
+    return task ? { success: true, task } : { success: false, error: 'Task not found' };
+  }
+
+  // Check if there's a pending 'complete' for this task — if so, just cancel it
+  const cancelled = removePendingActionByTaskId(taskId, 'complete');
+  if (cancelled) {
+    return { success: true, cancelledPending: true };
+  }
+
+  const result = await markTaskUndone(taskId, taskData);
+
+  if (result.success) {
+    processPendingQueue();
+    return result;
+  }
+
+  // Network error — cache the undo for later sync
+  if (isRetriableError(result.error)) {
+    addPendingAction({
+      type: 'uncomplete',
+      taskId,
+      taskData,
+    });
+    return { success: true, cached: true };
+  }
+
+  return result;
+});
+
+// --- Pending Queue IPC ---
+ipcMain.handle('get-pending-count', () => {
+  return getPendingCount();
 });
 
 ipcMain.handle('open-task-in-browser', (_event, taskId) => {
-  if (!config) return;
+  if (!config || config.standalone_mode) return;
   const url = `${config.vikunja_url}/tasks/${taskId}`;
   if (url.startsWith('https://') || url.startsWith('http://')) {
     shell.openExternal(url);
@@ -633,6 +877,45 @@ ipcMain.handle('open-task-in-browser', (_event, taskId) => {
 
 ipcMain.handle('close-viewer', () => {
   hideViewer();
+});
+
+// --- Standalone mode IPC ---
+ipcMain.handle('get-standalone-task-count', () => {
+  return getAllStandaloneTasks().length;
+});
+
+ipcMain.handle('upload-standalone-tasks', async (_event, url, token, projectId) => {
+  const tasks = getAllStandaloneTasks();
+  if (tasks.length === 0) {
+    return { success: true, uploaded: 0 };
+  }
+
+  let uploaded = 0;
+  const errors = [];
+
+  for (const task of tasks) {
+    const result = await createTask(task.title, task.description || null, task.due_date === '0001-01-01T00:00:00Z' ? null : task.due_date, projectId);
+    if (result.success) {
+      uploaded++;
+    } else {
+      errors.push(`"${task.title}": ${result.error}`);
+      // Stop on auth errors
+      if (result.error && isAuthError(result.error)) break;
+    }
+  }
+
+  if (uploaded > 0) {
+    // Clear only successfully uploaded tasks
+    if (uploaded === tasks.length) {
+      clearStandaloneTasks();
+    }
+  }
+
+  if (errors.length > 0) {
+    return { success: false, uploaded, error: errors[0], totalErrors: errors.length };
+  }
+
+  return { success: true, uploaded };
 });
 
 // --- App Lifecycle ---
@@ -659,6 +942,13 @@ app.on('ready', async () => {
   createViewerWindow();
   registerShortcuts();
   app.setLoginItemSettings({ openAtLogin: config.launch_on_startup });
+
+  if (!config.standalone_mode) {
+    // Start background sync for offline queue (not needed in standalone mode)
+    startSyncTimer();
+    // Try to flush anything cached from a previous session
+    processPendingQueue();
+  }
 });
 
 app.on('second-instance', () => {
@@ -670,6 +960,7 @@ app.on('second-instance', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  stopSyncTimer();
 });
 
 app.on('window-all-closed', () => {

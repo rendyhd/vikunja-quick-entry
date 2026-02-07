@@ -28,6 +28,16 @@ const viewerOrderBy = document.getElementById('viewer-order-by');
 const viewerDueDateFilter = document.getElementById('viewer-due-date-filter');
 const viewerIncludeToday = document.getElementById('viewer-include-today');
 
+// --- Standalone mode elements ---
+const standaloneMode = document.getElementById('standalone-mode');
+const serverSettings = document.getElementById('server-settings');
+const tabBar = document.querySelector('.tab-bar');
+const uploadDialog = document.getElementById('upload-dialog');
+const uploadDialogMessage = document.getElementById('upload-dialog-message');
+const uploadYesBtn = document.getElementById('upload-yes');
+const uploadNoBtn = document.getElementById('upload-no');
+const uploadStatus = document.getElementById('upload-status');
+
 // --- Shared elements ---
 const githubLink = document.getElementById('github-link');
 const settingsError = document.getElementById('settings-error');
@@ -38,6 +48,51 @@ let recordingHotkey = false;
 let recordingViewerHotkey = false;
 let loadedProjects = null; // Cache projects for Quick View tab
 let secondaryProjects = []; // [{id, title}, ...]
+let wasStandaloneMode = false; // Track if standalone was enabled when settings loaded
+let pendingUploadChoice = null; // Promise resolver for upload dialog
+
+// --- Standalone mode UI toggle ---
+function updateStandaloneUI(isStandalone) {
+  if (isStandalone) {
+    serverSettings.classList.add('hidden');
+    tabBar.classList.add('hidden');
+    // Hide both tabs, show only Quick Entry stripped content
+    document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
+    document.getElementById('tab-quick-entry').classList.add('active');
+    // Hide server-dependent settings
+    document.querySelectorAll('.server-dependent').forEach((el) => el.classList.add('hidden'));
+  } else {
+    serverSettings.classList.remove('hidden');
+    tabBar.classList.remove('hidden');
+    document.querySelectorAll('.server-dependent').forEach((el) => el.classList.remove('hidden'));
+  }
+  // Hide upload dialog when toggling
+  uploadDialog.hidden = true;
+}
+
+standaloneMode.addEventListener('change', async () => {
+  const isStandalone = standaloneMode.checked;
+  updateStandaloneUI(isStandalone);
+
+  // If turning OFF standalone mode, check for tasks to upload
+  if (!isStandalone && wasStandaloneMode) {
+    const taskCount = await window.settingsApi.getStandaloneTaskCount();
+    if (taskCount > 0) {
+      uploadDialogMessage.textContent = `You have ${taskCount} task(s) created in standalone mode. Would you like to upload them to the default Vikunja project?`;
+      uploadDialog.hidden = false;
+      uploadStatus.textContent = '';
+    }
+  }
+});
+
+uploadYesBtn.addEventListener('click', () => {
+  if (pendingUploadChoice) pendingUploadChoice('upload');
+});
+
+uploadNoBtn.addEventListener('click', () => {
+  if (pendingUploadChoice) pendingUploadChoice('discard');
+  uploadDialog.hidden = true;
+});
 
 // --- Tab switching ---
 const tabBtns = document.querySelectorAll('.tab-btn');
@@ -59,6 +114,11 @@ tabBtns.forEach((btn) => {
 async function loadExistingConfig() {
   const config = await window.settingsApi.getFullConfig();
   if (!config) return;
+
+  // Standalone mode
+  standaloneMode.checked = config.standalone_mode === true;
+  wasStandaloneMode = config.standalone_mode === true;
+  updateStandaloneUI(config.standalone_mode === true);
 
   urlInput.value = config.vikunja_url || '';
   tokenInput.value = config.api_token || '';
@@ -516,7 +576,10 @@ viewerHotkeyDisplay.addEventListener('blur', () => {
 btnSave.addEventListener('click', async () => {
   hideError();
 
+  const isStandalone = standaloneMode.checked;
+
   const settings = {
+    standalone_mode: isStandalone,
     vikunja_url: urlInput.value.trim(),
     api_token: tokenInput.value.trim(),
     default_project_id: projectSelect.value,
@@ -536,21 +599,82 @@ btnSave.addEventListener('click', async () => {
     secondary_projects: secondaryProjects.map(p => ({ id: p.id, title: p.title })),
   };
 
-  if (!settings.vikunja_url) {
-    showError('Vikunja URL is required.');
-    urlInput.focus();
-    return;
+  // Validation: only require server fields when not in standalone mode
+  if (!isStandalone) {
+    if (!settings.vikunja_url) {
+      showError('Vikunja URL is required.');
+      urlInput.focus();
+      return;
+    }
+
+    if (!settings.api_token) {
+      showError('API token is required.');
+      tokenInput.focus();
+      return;
+    }
+
+    if (!settings.default_project_id) {
+      showError('Please select a default project. Click "Load Projects" first.');
+      return;
+    }
   }
 
-  if (!settings.api_token) {
-    showError('API token is required.');
-    tokenInput.focus();
-    return;
-  }
+  // If leaving standalone mode, handle task upload
+  if (!isStandalone && wasStandaloneMode && !uploadDialog.hidden) {
+    // Wait for upload choice
+    const choice = await new Promise((resolve) => {
+      pendingUploadChoice = resolve;
+    });
+    pendingUploadChoice = null;
 
-  if (!settings.default_project_id) {
-    showError('Please select a default project. Click "Load Projects" first.');
-    return;
+    if (choice === 'upload') {
+      // Need server settings to upload
+      if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
+        showError('Configure server settings before uploading tasks.');
+        return;
+      }
+
+      uploadStatus.textContent = 'Uploading tasks...';
+      uploadStatus.className = 'status-text';
+      uploadYesBtn.disabled = true;
+      uploadNoBtn.disabled = true;
+
+      // Save settings first so the API config is available
+      const saveResult = await window.settingsApi.saveSettings(settings);
+      if (!saveResult.success) {
+        showError(saveResult.error || 'Failed to save settings.');
+        uploadYesBtn.disabled = false;
+        uploadNoBtn.disabled = false;
+        uploadStatus.textContent = '';
+        return;
+      }
+
+      const uploadResult = await window.settingsApi.uploadStandaloneTasks(
+        settings.vikunja_url,
+        settings.api_token,
+        Number(settings.default_project_id),
+      );
+
+      uploadYesBtn.disabled = false;
+      uploadNoBtn.disabled = false;
+
+      if (uploadResult.success) {
+        uploadStatus.textContent = `${uploadResult.uploaded} task(s) uploaded.`;
+        uploadStatus.className = 'status-text success';
+        wasStandaloneMode = false;
+        setTimeout(() => window.close(), 1000);
+        return;
+      } else {
+        const msg = uploadResult.uploaded > 0
+          ? `${uploadResult.uploaded} uploaded, but some failed: ${uploadResult.error}`
+          : uploadResult.error;
+        uploadStatus.textContent = msg;
+        uploadStatus.className = 'status-text error';
+        return;
+      }
+    }
+    // choice === 'discard' — continue with normal save
+    uploadDialog.hidden = true;
   }
 
   btnSave.disabled = true;
@@ -562,6 +686,7 @@ btnSave.addEventListener('click', async () => {
   btnSave.textContent = 'Save';
 
   if (result.success) {
+    wasStandaloneMode = isStandalone;
     window.close();
   } else {
     showError(result.error || 'Failed to save settings.');

@@ -39,6 +39,8 @@ function loadConfig() {
 
 function validateConfig(config) {
   if (!config || typeof config !== 'object') return false;
+  // Standalone mode doesn't require server credentials
+  if (config.standalone_mode === true) return true;
   if (!config.vikunja_url || typeof config.vikunja_url !== 'string') return false;
   if (!config.api_token || typeof config.api_token !== 'string') return false;
   if (!config.default_project_id && config.default_project_id !== 0) return false;
@@ -59,13 +61,14 @@ function getConfig() {
   if (!config) return null;
 
   return {
-    vikunja_url: config.vikunja_url.replace(/\/+$/, ''), // strip trailing slashes
-    api_token: config.api_token,
-    default_project_id: Number(config.default_project_id),
+    vikunja_url: config.vikunja_url ? config.vikunja_url.replace(/\/+$/, '') : '', // strip trailing slashes
+    api_token: config.api_token || '',
+    default_project_id: config.default_project_id ? Number(config.default_project_id) : 0,
     hotkey: config.hotkey || 'Alt+Shift+V',
     launch_on_startup: config.launch_on_startup === true,
     exclamation_today: config.exclamation_today !== false,
     auto_check_updates: config.auto_check_updates !== false,
+    standalone_mode: config.standalone_mode === true,
     // Quick Entry settings
     project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
     entry_position: config.entry_position || null,

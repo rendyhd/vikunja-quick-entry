@@ -17,8 +17,26 @@
       <button class="tab-btn" data-tab="quick-view">Quick View</button>
     </div>
 
+    <!-- Standalone mode toggle -->
+    <div class="form-group checkbox-group standalone-toggle">
+      <label>
+        <input id="standalone-mode" type="checkbox" />
+        <span>Standalone mode <span class="label-hint">(offline only, no server connection)</span></span>
+      </label>
+    </div>
+
+    <!-- Upload confirmation dialog (shown when leaving standalone mode) -->
+    <div id="upload-dialog" class="upload-dialog" hidden>
+      <p id="upload-dialog-message"></p>
+      <div class="upload-dialog-buttons">
+        <button id="upload-yes" class="btn-primary btn-small" type="button">Upload tasks</button>
+        <button id="upload-no" class="btn-secondary btn-small" type="button">Discard tasks</button>
+      </div>
+      <div id="upload-status" class="status-text"></div>
+    </div>
+
     <!-- Shared settings (always visible, above tabs) -->
-    <div class="shared-settings">
+    <div id="server-settings" class="shared-settings">
       <div class="form-group">
         <label for="vikunja-url">Vikunja URL</label>
         <input id="vikunja-url" type="url" placeholder="https://app.vikunja.cloud" spellcheck="false" />
@@ -35,7 +53,7 @@
 
     <!-- Quick Entry tab -->
     <div id="tab-quick-entry" class="tab-content active">
-      <div class="form-group">
+      <div class="form-group server-dependent">
         <label for="default-project">Default Project</label>
         <div class="input-row">
           <select id="default-project" disabled>
@@ -46,7 +64,7 @@
         <div id="project-status" class="status-text"></div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group server-dependent">
         <label>Secondary Projects <span class="label-hint">(<span id="cycle-shortcut-hint">Ctrl</span>+Arrow to cycle in Quick Entry)</span></label>
         <div id="secondary-projects-list" class="reorder-list"></div>
         <div class="input-row" style="margin-top: 8px;">
@@ -57,7 +75,7 @@
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group server-dependent">
         <label for="project-cycle-modifier">Project cycle shortcut</label>
         <select id="project-cycle-modifier">
           <option value="ctrl">Ctrl + Arrow keys</option>
