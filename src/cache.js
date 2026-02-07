@@ -200,13 +200,35 @@ function addStandaloneTask(title, description, dueDate) {
 }
 
 /**
- * Get all open (not done) standalone tasks, sorted by created date.
+ * Get all open (not done) standalone tasks, sorted by the specified field.
  */
-function getStandaloneTasks() {
+function getStandaloneTasks(sortBy, orderBy) {
   const cache = loadCache();
+  const field = sortBy || 'due_date';
+  const asc = (orderBy || 'asc') === 'asc';
+  const NO_DUE = '0001-01-01T00:00:00Z';
+
   return cache.standaloneTasks
     .filter((t) => !t.done)
-    .sort((a, b) => new Date(a.created) - new Date(b.created))
+    .sort((a, b) => {
+      // For due_date sort: push "no due date" tasks to the end
+      if (field === 'due_date') {
+        const aNo = a.due_date === NO_DUE;
+        const bNo = b.due_date === NO_DUE;
+        if (aNo !== bNo) return aNo ? 1 : -1;
+      }
+
+      let cmp;
+      if (field === 'title') {
+        cmp = (a.title || '').localeCompare(b.title || '');
+      } else if (field === 'priority') {
+        cmp = (a.priority || 0) - (b.priority || 0);
+      } else {
+        // date fields: due_date, created, updated
+        cmp = new Date(a[field] || 0) - new Date(b[field] || 0);
+      }
+      return asc ? cmp : -cmp;
+    })
     .slice(0, 10);
 }
 

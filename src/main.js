@@ -604,6 +604,12 @@ ipcMain.handle('save-task', async (_event, title, description, dueDate, projectI
   // Standalone mode: store locally, no API calls
   if (config && config.standalone_mode) {
     const task = addStandaloneTask(title, description || null, dueDate || null);
+    // Notify viewer to refresh (invalidates stale in-memory cache)
+    try {
+      if (viewerWindow && !viewerWindow.isDestroyed()) {
+        viewerWindow.webContents.send('sync-completed');
+      }
+    } catch { /* ignore */ }
     return { success: true, task };
   }
 
@@ -771,7 +777,10 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
 
   // Standalone mode: read from local store
   if (config.standalone_mode) {
-    const tasks = getStandaloneTasks();
+    const tasks = getStandaloneTasks(
+      config.viewer_filter.sort_by,
+      config.viewer_filter.order_by,
+    );
     return { success: true, tasks, standalone: true };
   }
 
