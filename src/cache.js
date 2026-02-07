@@ -229,6 +229,20 @@ function markStandaloneTaskUndone(taskId) {
 }
 
 /**
+ * Set a standalone task's due date to today (end-of-day local time).
+ */
+function scheduleStandaloneTaskToday(taskId) {
+  const cache = loadCache();
+  const task = cache.standaloneTasks.find((t) => t.id === taskId);
+  if (!task) return null;
+  const now = new Date();
+  task.due_date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+  task.updated = new Date().toISOString();
+  saveCache(cache);
+  return task;
+}
+
+/**
  * Clear all standalone tasks (after successful upload to server).
  */
 function clearStandaloneTasks() {
@@ -252,5 +266,6 @@ module.exports = {
   getAllStandaloneTasks,
   markStandaloneTaskDone,
   markStandaloneTaskUndone,
+  scheduleStandaloneTaskToday,
   clearStandaloneTasks,
 };

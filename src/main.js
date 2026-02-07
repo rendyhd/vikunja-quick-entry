@@ -58,7 +58,7 @@ const {
 } = require('electron');
 const path = require('path');
 const { getConfig, saveConfig } = require('./config');
-const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone } = require('./api');
+const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
 const {
@@ -76,6 +76,7 @@ const {
   getAllStandaloneTasks,
   markStandaloneTaskDone,
   markStandaloneTaskUndone,
+  scheduleStandaloneTaskToday,
   clearStandaloneTasks,
 } = require('./cache');
 
@@ -524,6 +525,9 @@ async function processPendingQueue() {
           case 'uncomplete':
             result = await markTaskUndone(action.taskId, action.taskData);
             break;
+          case 'schedule-today':
+            result = await updateTaskDueDate(action.taskId, action.taskData, action.dueDate);
+            break;
           default:
             // Unknown action type, remove it
             removePendingAction(action.id);
@@ -766,7 +770,7 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
   }
 
   const filterParams = {
-    per_page: 10,
+    per_page: -1,
     page: 1,
     project_ids: config.viewer_filter.project_ids,
     sort_by: config.viewer_filter.sort_by,
@@ -855,6 +859,37 @@ ipcMain.handle('mark-task-undone', async (_event, taskId, taskData) => {
       type: 'uncomplete',
       taskId,
       taskData,
+    });
+    return { success: true, cached: true };
+  }
+
+  return result;
+});
+
+ipcMain.handle('schedule-task-today', async (_event, taskId, taskData) => {
+  const now = new Date();
+  const dueDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+
+  // Standalone mode: update local store
+  if (config && config.standalone_mode) {
+    const task = scheduleStandaloneTaskToday(String(taskId));
+    return task ? { success: true, task } : { success: false, error: 'Task not found' };
+  }
+
+  const result = await updateTaskDueDate(taskId, taskData, dueDate);
+
+  if (result.success) {
+    processPendingQueue();
+    return result;
+  }
+
+  // Network error — cache for later sync
+  if (isRetriableError(result.error)) {
+    addPendingAction({
+      type: 'schedule-today',
+      taskId,
+      taskData,
+      dueDate,
     });
     return { success: true, cached: true };
   }

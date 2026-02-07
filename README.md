@@ -26,7 +26,9 @@ Press your hotkey from anywhere and a lightweight floating window appears. Type 
 ### At-a-glance task list
 
 A second hotkey opens Quick View: a floating list of your upcoming tasks. See what's due, check off completed items, and close it. No need to open Vikunja in a browser just to see what's next.
-- Keyboard-driven navigation (Navigate tasks with arrow keys, complete them with Enter, undo with Enter again, or open a task in your browser with Shift+Enter)
+- Keyboard-driven navigation (Navigate tasks with arrow keys, complete them with Enter, undo with Enter again)
+- Expand task descriptions inline with Shift+Enter
+- Quick-schedule a task for today by pressing `!`
 - Color-coded due dates and priorities (red for overdue, yellow for today, green for upcoming)
 - Flexible filtering (select which projects and filter requirements)
 
@@ -35,7 +37,7 @@ A second hotkey opens Quick View: a floating list of your upcoming tasks. See wh
 Use the app as a local task manager without any server connection. Enable it in Settings with a single checkbox — all tasks are stored locally on your device. No Vikunja account or server needed.
 
 - Tasks are saved to a local database (the offline cache)
-- Quick View reads from local storage — Shift+Enter expands task descriptions inline instead of opening a browser
+- Quick View reads from local storage
 - Only one project (local) — no project configuration required
 - When you later connect to a server, you'll be prompted to upload your local tasks to your default Vikunja project
 
@@ -122,7 +124,8 @@ Press your Quick Entry hotkey anywhere to create tasks. Press your Quick View ho
 |--------------|----------|
 | **Up/Down** | Navigate task list |
 | **Enter** | Complete selected task (or undo) |
-| **Shift+Enter** | Open selected task in browser (or expand description in standalone mode) |
+| **Shift+Enter** | Expand / collapse task description |
+| **!** | Schedule selected task for today |
 | **Escape** | Close the viewer |
 | **Click checkbox** | Mark task as done |
 | **Click task title** | Open task in browser |
@@ -215,6 +218,8 @@ Uses [Electron Accelerator](https://www.electronjs.org/docs/latest/api/accelerat
 ~~V3: Offline caching~~ — Shipped
 
 ~~V4: Standalone mode~~ — Shipped
+
+~~V5: Quick View enhancements (load all tasks, schedule today, inline descriptions)~~ — Shipped
 
 ---
 

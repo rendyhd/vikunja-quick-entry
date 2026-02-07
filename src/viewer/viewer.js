@@ -6,6 +6,10 @@ const statusBar = document.getElementById('status-bar');
 let errorTimeout = null;
 let selectedIndex = -1;
 let isStandaloneMode = false;
+// Cache: skip re-fetch if opened again within 30s
+let lastFetchResult = null;
+let lastFetchTime = 0;
+const CACHE_TTL_MS = 30000;
 // Map of taskId -> original task data for undo
 const completedTasks = new Map();
 // Track which completions were cached (offline) vs synced
@@ -229,6 +233,8 @@ async function completeTask(taskId, itemElement, checkbox) {
   const result = await window.viewerApi.markTaskDone(taskId, originalTask);
 
   if (result.success) {
+    // Invalidate cache so next open fetches fresh data
+    lastFetchResult = null;
     // Store ORIGINAL task data for undo (not from response which may have lost fields)
     completedTasks.set(String(taskId), originalTask);
 
@@ -255,6 +261,8 @@ async function undoComplete(taskId, itemElement) {
   const result = await window.viewerApi.markTaskUndone(taskId, storedTask);
 
   if (result.success) {
+    // Invalidate cache so next open fetches fresh data
+    lastFetchResult = null;
     // Use stored original data (most reliable) or fall back to API response
     const taskData = storedTask || result.task || { id: taskId, title: 'Task' };
     completedTasks.delete(String(taskId));
@@ -265,6 +273,53 @@ async function undoComplete(taskId, itemElement) {
     itemElement.replaceWith(newItem);
   } else {
     showError(result.error || 'Failed to undo completion');
+  }
+}
+
+async function scheduleTaskToday() {
+  const items = getTaskItems();
+  if (selectedIndex < 0 || selectedIndex >= items.length) return;
+
+  const item = items[selectedIndex];
+  // Don't schedule completed/undo items
+  if (item.classList.contains('completed-undo')) return;
+
+  const taskId = item.dataset.taskId;
+  const taskData = JSON.parse(item.dataset.task || '{}');
+
+  const result = await window.viewerApi.scheduleTaskToday(taskId, taskData);
+
+  if (result.success) {
+    // Invalidate cache so next open fetches fresh data
+    lastFetchResult = null;
+
+    // Update the due date in the stored task data
+    const now = new Date();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+    taskData.due_date = todayEnd;
+    item.dataset.task = JSON.stringify(taskData);
+
+    // Update the due date badge in the DOM
+    const content = item.querySelector('.task-content');
+    let dueEl = item.querySelector('.task-due');
+    if (dueEl) {
+      dueEl.textContent = 'Today';
+      dueEl.className = 'task-due today';
+    } else if (content) {
+      // Task had no due date — create the badge
+      dueEl = document.createElement('div');
+      dueEl.className = 'task-due today';
+      dueEl.textContent = 'Today';
+      // Insert after .task-title
+      const titleEl = content.querySelector('.task-title');
+      if (titleEl && titleEl.nextSibling) {
+        content.insertBefore(dueEl, titleEl.nextSibling);
+      } else {
+        content.appendChild(dueEl);
+      }
+    }
+  } else {
+    showError(result.error || 'Failed to schedule task');
   }
 }
 
@@ -298,12 +353,29 @@ async function loadConfig() {
   }
 }
 
-async function loadTasks() {
+async function loadTasks(forceRefresh = false) {
+  const now = Date.now();
+  const cacheValid = !forceRefresh && lastFetchResult && (now - lastFetchTime < CACHE_TTL_MS);
+
+  if (cacheValid) {
+    applyFetchResult(lastFetchResult);
+    return;
+  }
+
   taskList.innerHTML = '<div class="loading">Loading tasks...</div>';
   hideStatusBar();
 
   const result = await window.viewerApi.fetchTasks();
 
+  if (result.success) {
+    lastFetchResult = result;
+    lastFetchTime = Date.now();
+  }
+
+  applyFetchResult(result);
+}
+
+async function applyFetchResult(result) {
   if (result.success) {
     renderTasks(result.tasks);
 
@@ -340,7 +412,7 @@ window.viewerApi.onShowWindow(async () => {
 // When background sync completes, refresh the task list if visible
 window.viewerApi.onSyncCompleted(async () => {
   // Reload tasks to reflect synced state
-  await loadTasks();
+  await loadTasks(true);
 });
 
 // Keyboard handling
@@ -365,11 +437,13 @@ document.addEventListener('keydown', (e) => {
 
   if (e.shiftKey && e.key === 'Enter') {
     e.preventDefault();
-    if (isStandaloneMode) {
-      toggleSelectedDescription();
-    } else {
-      openSelectedTaskInBrowser();
-    }
+    toggleSelectedDescription();
+    return;
+  }
+
+  if (e.key === '!') {
+    e.preventDefault();
+    scheduleTaskToday();
     return;
   }
 

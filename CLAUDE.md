@@ -92,6 +92,8 @@ The version must be updated in **two files, three locations** before tagging a r
 
 All three must match. After bumping, tag as `v<version>` and push with `--tags` to trigger CI.
 
+**IMPORTANT**: When editing `package-lock.json`, only change the two project version fields listed above. Do NOT use `replace_all` or blanket find-and-replace — the lockfile contains hundreds of dependency version strings that will be corrupted. Always target each field individually by matching surrounding context (e.g., the `"name": "vikunja-quick-entry"` line adjacent to the version).
+
 #### macOS Code Signing
 
 **Do NOT add `osxSign` to `packagerConfig`.** The app uses ad-hoc signing only (no Apple Developer certificate).

@@ -273,7 +273,7 @@ body {
   opacity: 1;
 }
 
-/* Scrollbar */
+/* Scrollbar — auto-hiding overlay style */
 .task-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -283,11 +283,16 @@ body {
 }
 
 .task-list::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: transparent;
   border-radius: 3px;
+  transition: background 0.3s;
 }
 
-.task-list::-webkit-scrollbar-thumb:hover {
+.task-list:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.task-list:hover::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
 }
 
@@ -368,10 +373,15 @@ body {
   }
 
   .task-list::-webkit-scrollbar-thumb {
+    background: transparent;
+    transition: background 0.3s;
+  }
+
+  .task-list:hover::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.15);
   }
 
-  .task-list::-webkit-scrollbar-thumb:hover {
+  .task-list:hover::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.25);
   }
 
