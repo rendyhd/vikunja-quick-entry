@@ -26,7 +26,11 @@ body {
 /* Container card */
 .container {
   -webkit-app-region: drag;
-  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -38,7 +42,6 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 100%;
 }
 
 .container.visible {
