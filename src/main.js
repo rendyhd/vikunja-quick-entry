@@ -97,6 +97,7 @@ let updateInfo = null;
 let updateNotification = null;
 let syncTimer = null;
 let isSyncing = false;
+let isResettingViewerHeight = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -287,6 +288,18 @@ function createViewerWindow() {
     const updatedConfig = Object.assign({}, config, { viewer_position: { x, y } });
     saveConfig(updatedConfig);
     config = getConfig();
+  });
+
+  // Lock height to 460px — frameless transparent windows on Windows
+  // allow content-driven resizing that bypasses maxHeight constraints
+  viewerWindow.on('resize', () => {
+    if (isResettingViewerHeight) return;
+    const [w, h] = viewerWindow.getSize();
+    if (h !== 460) {
+      isResettingViewerHeight = true;
+      viewerWindow.setSize(w, 460);
+      isResettingViewerHeight = false;
+    }
   });
 }
 
