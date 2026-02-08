@@ -49,7 +49,6 @@ let recordingViewerHotkey = false;
 let loadedProjects = null; // Cache projects for Quick View tab
 let secondaryProjects = []; // [{id, title}, ...]
 let wasStandaloneMode = false; // Track if standalone was enabled when settings loaded
-let pendingUploadChoice = null; // Promise resolver for upload dialog
 
 // --- Standalone mode UI toggle ---
 function updateStandaloneUI(isStandalone) {
@@ -85,13 +84,74 @@ standaloneMode.addEventListener('change', async () => {
   }
 });
 
-uploadYesBtn.addEventListener('click', () => {
-  if (pendingUploadChoice) pendingUploadChoice('upload');
+uploadYesBtn.addEventListener('click', async () => {
+  hideError();
+  const settings = gatherSettings({ standalone_mode: false });
+
+  if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
+    showError('Configure server settings before uploading tasks.');
+    return;
+  }
+
+  uploadStatus.textContent = 'Uploading tasks...';
+  uploadStatus.className = 'status-text';
+  uploadYesBtn.disabled = true;
+  uploadNoBtn.disabled = true;
+
+  const saveResult = await window.settingsApi.saveSettings(settings);
+  if (!saveResult.success) {
+    showError(saveResult.error || 'Failed to save settings.');
+    uploadYesBtn.disabled = false;
+    uploadNoBtn.disabled = false;
+    uploadStatus.textContent = '';
+    return;
+  }
+
+  const uploadResult = await window.settingsApi.uploadStandaloneTasks(
+    settings.vikunja_url,
+    settings.api_token,
+    Number(settings.default_project_id),
+  );
+
+  uploadYesBtn.disabled = false;
+  uploadNoBtn.disabled = false;
+
+  if (uploadResult.success) {
+    uploadStatus.textContent = `${uploadResult.uploaded} task(s) uploaded.`;
+    uploadStatus.className = 'status-text success';
+    wasStandaloneMode = false;
+    setTimeout(() => window.close(), 1000);
+  } else {
+    const msg = uploadResult.uploaded > 0
+      ? `${uploadResult.uploaded} uploaded, but some failed: ${uploadResult.error}`
+      : uploadResult.error;
+    uploadStatus.textContent = msg;
+    uploadStatus.className = 'status-text error';
+  }
 });
 
-uploadNoBtn.addEventListener('click', () => {
-  if (pendingUploadChoice) pendingUploadChoice('discard');
+uploadNoBtn.addEventListener('click', async () => {
+  hideError();
+  const settings = gatherSettings({ standalone_mode: false });
+
+  if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
+    showError('Configure server settings before saving.');
+    return;
+  }
+
+  btnSave.disabled = true;
   uploadDialog.hidden = true;
+
+  const saveResult = await window.settingsApi.saveSettings(settings);
+
+  btnSave.disabled = false;
+
+  if (saveResult.success) {
+    wasStandaloneMode = false;
+    window.close();
+  } else {
+    showError(saveResult.error || 'Failed to save settings.');
+  }
 });
 
 // --- Tab switching ---
@@ -572,14 +632,10 @@ viewerHotkeyDisplay.addEventListener('blur', () => {
   }
 });
 
-// --- Save ---
-btnSave.addEventListener('click', async () => {
-  hideError();
-
-  const isStandalone = standaloneMode.checked;
-
+// --- Gather settings helper ---
+function gatherSettings(overrides = {}) {
   const settings = {
-    standalone_mode: isStandalone,
+    standalone_mode: standaloneMode.checked,
     vikunja_url: urlInput.value.trim(),
     api_token: tokenInput.value.trim(),
     default_project_id: projectSelect.value,
@@ -597,7 +653,18 @@ btnSave.addEventListener('click', async () => {
       include_today_all_projects: viewerIncludeToday.checked,
     },
     secondary_projects: secondaryProjects.map(p => ({ id: p.id, title: p.title })),
+    ...overrides,
   };
+  return settings;
+}
+
+// --- Save ---
+btnSave.addEventListener('click', async () => {
+  hideError();
+
+  const isStandalone = standaloneMode.checked;
+
+  const settings = gatherSettings();
 
   // Validation: only require server fields when not in standalone mode
   if (!isStandalone) {
@@ -619,61 +686,8 @@ btnSave.addEventListener('click', async () => {
     }
   }
 
-  // If leaving standalone mode, handle task upload
-  if (!isStandalone && wasStandaloneMode && !uploadDialog.hidden) {
-    // Wait for upload choice
-    const choice = await new Promise((resolve) => {
-      pendingUploadChoice = resolve;
-    });
-    pendingUploadChoice = null;
-
-    if (choice === 'upload') {
-      // Need server settings to upload
-      if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
-        showError('Configure server settings before uploading tasks.');
-        return;
-      }
-
-      uploadStatus.textContent = 'Uploading tasks...';
-      uploadStatus.className = 'status-text';
-      uploadYesBtn.disabled = true;
-      uploadNoBtn.disabled = true;
-
-      // Save settings first so the API config is available
-      const saveResult = await window.settingsApi.saveSettings(settings);
-      if (!saveResult.success) {
-        showError(saveResult.error || 'Failed to save settings.');
-        uploadYesBtn.disabled = false;
-        uploadNoBtn.disabled = false;
-        uploadStatus.textContent = '';
-        return;
-      }
-
-      const uploadResult = await window.settingsApi.uploadStandaloneTasks(
-        settings.vikunja_url,
-        settings.api_token,
-        Number(settings.default_project_id),
-      );
-
-      uploadYesBtn.disabled = false;
-      uploadNoBtn.disabled = false;
-
-      if (uploadResult.success) {
-        uploadStatus.textContent = `${uploadResult.uploaded} task(s) uploaded.`;
-        uploadStatus.className = 'status-text success';
-        wasStandaloneMode = false;
-        setTimeout(() => window.close(), 1000);
-        return;
-      } else {
-        const msg = uploadResult.uploaded > 0
-          ? `${uploadResult.uploaded} uploaded, but some failed: ${uploadResult.error}`
-          : uploadResult.error;
-        uploadStatus.textContent = msg;
-        uploadStatus.className = 'status-text error';
-        return;
-      }
-    }
-    // choice === 'discard' — continue with normal save
+  // If upload dialog is showing, hide it — the dialog buttons handle upload/discard independently
+  if (!uploadDialog.hidden) {
     uploadDialog.hidden = true;
   }
 
