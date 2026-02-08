@@ -184,7 +184,7 @@ function buildTaskItemDOM(task) {
     descIcon.className = 'description-icon';
     descIcon.title = 'Toggle description';
     descIcon.textContent = '\u2261'; // ≡ (triple bar / hamburger icon)
-    descIcon.addEventListener('click', (e) => {
+    descIcon.addEventListener('mousedown', (e) => {
       e.stopPropagation();
       const desc = item.querySelector('.task-description');
       if (desc) {
@@ -206,7 +206,7 @@ function buildTaskItemDOM(task) {
     content.appendChild(due);
   }
 
-  // Description (hidden by default, toggled with Shift+Enter or icon click)
+  // Description (hidden by default, toggled with Tab or icon click)
   if (task.description) {
     const desc = document.createElement('div');
     desc.className = 'task-description hidden';
@@ -663,13 +663,13 @@ document.addEventListener('keydown', (e) => {
 
   if (e.key === 'Tab') {
     e.preventDefault();
-    enterEditMode();
+    toggleSelectedDescription();
     return;
   }
 
   if (e.shiftKey && e.key === 'Enter') {
     e.preventDefault();
-    toggleSelectedDescription();
+    enterEditMode();
     return;
   }
 
