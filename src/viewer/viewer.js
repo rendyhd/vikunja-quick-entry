@@ -26,7 +26,11 @@ function measureContentHeight() {
   if (!errorMessage.hidden) {
     height += errorMessage.offsetHeight;
   }
-  return Math.max(60, Math.min(460, height));
+  return height;
+}
+
+function notifyHeight() {
+  window.viewerApi.setHeight(measureContentHeight());
 }
 
 function showError(msg) {
@@ -185,7 +189,7 @@ function buildTaskItemDOM(task) {
       const desc = item.querySelector('.task-description');
       if (desc) {
         desc.classList.toggle('hidden');
-        window.viewerApi.setHeight(measureContentHeight());
+        notifyHeight();
       }
     });
     titleRow.appendChild(descIcon);
@@ -228,7 +232,7 @@ function toggleSelectedDescription() {
   const desc = item.querySelector('.task-description');
   if (!desc) return;
   desc.classList.toggle('hidden');
-  window.viewerApi.setHeight(measureContentHeight());
+  notifyHeight();
 }
 
 function renderTasks(tasks) {
@@ -289,7 +293,7 @@ async function completeTask(taskId, itemElement, checkbox) {
 
     // Replace item content with undo message
     showCompletedMessage(itemElement, taskId, wasCached);
-    window.viewerApi.setHeight(measureContentHeight());
+    notifyHeight();
   } else {
     showError(result.error || 'Failed to complete task');
     if (checkbox) {
@@ -316,7 +320,7 @@ async function undoComplete(taskId, itemElement) {
     const newItem = buildTaskItemDOM(taskData);
     newItem.classList.add('selected');
     itemElement.replaceWith(newItem);
-    window.viewerApi.setHeight(measureContentHeight());
+    notifyHeight();
   } else {
     showError(result.error || 'Failed to undo completion');
   }
@@ -479,7 +483,7 @@ function enterEditMode(focusDescription = false) {
     titleInput.select();
   }
 
-  window.viewerApi.setHeight(measureContentHeight());
+  notifyHeight();
 }
 
 async function saveEdit(item, newTitle, newDescription) {
@@ -513,7 +517,7 @@ async function saveEdit(item, newTitle, newDescription) {
     newItem.dataset.task = item.dataset.task;
     item.replaceWith(newItem);
     editingItem = null;
-    window.viewerApi.setHeight(measureContentHeight());
+    notifyHeight();
   } else {
     showError(result.error || 'Failed to update task');
   }
@@ -526,7 +530,7 @@ function cancelEdit(item) {
   }
   item.classList.remove('editing');
   editingItem = null;
-  window.viewerApi.setHeight(measureContentHeight());
+  notifyHeight();
 }
 
 function exitEditMode(item) {
@@ -608,7 +612,7 @@ async function applyFetchResult(result) {
     taskList.innerHTML = '';
     showError(result.error || 'Failed to load tasks');
   }
-  await window.viewerApi.setHeight(measureContentHeight());
+  notifyHeight();
 }
 
 // When the main process signals the window is shown

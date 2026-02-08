@@ -307,6 +307,8 @@ function createViewerWindow() {
 function showViewer() {
   if (!viewerWindow) return;
 
+  viewerDesiredHeight = 460;
+
   if (config && config.viewer_position) {
     // Use saved position, but ensure it's on-screen
     const displays = screen.getAllDisplays();
