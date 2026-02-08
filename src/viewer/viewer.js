@@ -183,7 +183,10 @@ function buildTaskItemDOM(task) {
     descIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       const desc = item.querySelector('.task-description');
-      if (desc) desc.classList.toggle('hidden');
+      if (desc) {
+        desc.classList.toggle('hidden');
+        window.viewerApi.setHeight(measureContentHeight());
+      }
     });
     titleRow.appendChild(descIcon);
   }
@@ -225,6 +228,7 @@ function toggleSelectedDescription() {
   const desc = item.querySelector('.task-description');
   if (!desc) return;
   desc.classList.toggle('hidden');
+  window.viewerApi.setHeight(measureContentHeight());
 }
 
 function renderTasks(tasks) {
@@ -474,6 +478,8 @@ function enterEditMode(focusDescription = false) {
     titleInput.focus();
     titleInput.select();
   }
+
+  window.viewerApi.setHeight(measureContentHeight());
 }
 
 async function saveEdit(item, newTitle, newDescription) {
@@ -507,6 +513,7 @@ async function saveEdit(item, newTitle, newDescription) {
     newItem.dataset.task = item.dataset.task;
     item.replaceWith(newItem);
     editingItem = null;
+    window.viewerApi.setHeight(measureContentHeight());
   } else {
     showError(result.error || 'Failed to update task');
   }
@@ -519,6 +526,7 @@ function cancelEdit(item) {
   }
   item.classList.remove('editing');
   editingItem = null;
+  window.viewerApi.setHeight(measureContentHeight());
 }
 
 function exitEditMode(item) {
