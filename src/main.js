@@ -99,6 +99,13 @@ let syncTimer = null;
 let isSyncing = false;
 let isResettingViewerHeight = false;
 let viewerDesiredHeight = 460;
+let cacheRefreshTimer = null;
+let isRefreshingCache = false;
+let cacheRefreshBackoff = 30000;
+const CACHE_REFRESH_BASE_INTERVAL = 30000;  // 30s
+const CACHE_REFRESH_MAX_INTERVAL = 300000;  // 5min cap
+const CACHE_REFRESH_BACKOFF_FACTOR = 2;
+const CACHE_REFRESH_JITTER = 0.25;          // +/-25%
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -615,6 +622,100 @@ function stopSyncTimer() {
   }
 }
 
+// --- Background Task Cache Refresh ---
+function buildFilterParams() {
+  if (!config || !config.viewer_filter) return null;
+  return {
+    per_page: 10000,
+    page: 1,
+    project_ids: config.viewer_filter.project_ids,
+    sort_by: config.viewer_filter.sort_by,
+    order_by: config.viewer_filter.order_by,
+    due_date_filter: config.viewer_filter.due_date_filter,
+    include_today_all_projects: config.viewer_filter.include_today_all_projects,
+  };
+}
+
+async function refreshTaskCache() {
+  if (isRefreshingCache) return;
+  if (!config || config.standalone_mode) return;
+
+  // Skip if viewer is visible (it fetches on its own via IPC)
+  if (viewerWindow && !viewerWindow.isDestroyed() && viewerWindow.isVisible()) {
+    scheduleCacheRefresh();
+    return;
+  }
+
+  // Skip if offline — net.on('online') will restart the chain
+  const { net } = require('electron');
+  if (!net.isOnline()) return;
+
+  isRefreshingCache = true;
+  try {
+    const filterParams = buildFilterParams();
+    if (!filterParams) return;
+
+    const result = await fetchTasks(filterParams);
+
+    if (result.success) {
+      setCachedTasks(result.tasks);
+      cacheRefreshBackoff = CACHE_REFRESH_BASE_INTERVAL; // reset on success
+    } else if (isRetriableError(result.error)) {
+      // Exponential backoff: 30s → 60s → 120s → 240s → 300s cap
+      cacheRefreshBackoff = Math.min(
+        cacheRefreshBackoff * CACHE_REFRESH_BACKOFF_FACTOR,
+        CACHE_REFRESH_MAX_INTERVAL
+      );
+    }
+  } finally {
+    isRefreshingCache = false;
+    scheduleCacheRefresh();
+  }
+}
+
+function scheduleCacheRefresh() {
+  if (cacheRefreshTimer) {
+    clearTimeout(cacheRefreshTimer);
+    cacheRefreshTimer = null;
+  }
+  if (!config || config.standalone_mode) return;
+
+  // Apply jitter: ±25% of current backoff
+  const jitter = cacheRefreshBackoff * CACHE_REFRESH_JITTER;
+  const delay = cacheRefreshBackoff + (Math.random() * 2 - 1) * jitter;
+
+  cacheRefreshTimer = setTimeout(() => {
+    cacheRefreshTimer = null;
+    refreshTaskCache();
+  }, delay);
+}
+
+function stopCacheRefresh() {
+  if (cacheRefreshTimer) {
+    clearTimeout(cacheRefreshTimer);
+    cacheRefreshTimer = null;
+  }
+  cacheRefreshBackoff = CACHE_REFRESH_BASE_INTERVAL;
+  isRefreshingCache = false;
+}
+
+function setupNetworkListeners() {
+  const { net } = require('electron');
+
+  net.on('online', () => {
+    cacheRefreshBackoff = CACHE_REFRESH_BASE_INTERVAL;
+    refreshTaskCache();     // immediate warm-up
+    processPendingQueue();  // also flush pending actions
+  });
+
+  net.on('offline', () => {
+    if (cacheRefreshTimer) {
+      clearTimeout(cacheRefreshTimer);
+      cacheRefreshTimer = null;
+    }
+  });
+}
+
 // --- IPC Handlers ---
 ipcMain.handle('save-task', async (_event, title, description, dueDate, projectId) => {
   // Standalone mode: store locally, no API calls
@@ -764,9 +865,12 @@ ipcMain.handle('save-settings', async (_event, settings) => {
     if (isStandalone) {
       // No sync in standalone mode
       stopSyncTimer();
+      stopCacheRefresh();
     } else {
       // Ensure sync timer is running (may not be if this is first-time setup)
       startSyncTimer();
+      stopCacheRefresh();       // restart with fresh config
+      refreshTaskCache();       // re-fetch with updated filters
     }
 
     return { success: true };
@@ -800,15 +904,10 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
     return { success: true, tasks, standalone: true };
   }
 
-  const filterParams = {
-    per_page: 10000,
-    page: 1,
-    project_ids: config.viewer_filter.project_ids,
-    sort_by: config.viewer_filter.sort_by,
-    order_by: config.viewer_filter.order_by,
-    due_date_filter: config.viewer_filter.due_date_filter,
-    include_today_all_projects: config.viewer_filter.include_today_all_projects,
-  };
+  const filterParams = buildFilterParams();
+  if (!filterParams) {
+    return { success: false, error: 'No filter configuration' };
+  }
 
   const result = await fetchTasks(filterParams);
 
@@ -1081,6 +1180,10 @@ app.on('ready', async () => {
     startSyncTimer();
     // Try to flush anything cached from a previous session
     processPendingQueue();
+    // Warm the task cache on startup and keep it fresh in the background
+    refreshTaskCache();
+    // React to connectivity changes (refresh cache on reconnect, pause when offline)
+    setupNetworkListeners();
   }
 });
 
@@ -1094,6 +1197,7 @@ app.on('second-instance', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   stopSyncTimer();
+  stopCacheRefresh();
 });
 
 app.on('window-all-closed', () => {
