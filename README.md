@@ -124,7 +124,8 @@ Press your Quick Entry hotkey anywhere to create tasks. Press your Quick View ho
 |--------------|----------|
 | **Up/Down** | Navigate task list |
 | **Enter** | Complete selected task (or undo) |
-| **Shift+Enter** | Expand / collapse task description |
+| **Tab** | Expand / collapse task description |
+| **Shift+Enter** | Edit task inline |
 | **!** | Schedule selected task for today |
 | **Escape** | Close the viewer |
 | **Click checkbox** | Mark task as done |
