@@ -624,6 +624,9 @@ window.viewerApi.onShowWindow(async () => {
   container.classList.remove('visible');
   void container.offsetHeight;
   container.classList.add('visible');
+
+  // Safety: re-check height after paint in case initial measurement was stale
+  requestAnimationFrame(() => notifyHeight());
 });
 
 // When background sync completes, refresh the task list if visible

@@ -314,7 +314,11 @@ function createViewerWindow() {
 function showViewer() {
   if (!viewerWindow) return;
 
-  viewerDesiredHeight = 460;
+  // Pre-size window to desired height before showing to avoid stale-height flash
+  const [currentWidth] = viewerWindow.getSize();
+  isResettingViewerHeight = true;
+  viewerWindow.setSize(currentWidth, viewerDesiredHeight);
+  isResettingViewerHeight = false;
 
   if (config && config.viewer_position) {
     // Use saved position, but ensure it's on-screen
@@ -699,21 +703,28 @@ function stopCacheRefresh() {
   isRefreshingCache = false;
 }
 
+let networkPollTimer = null;
+
 function setupNetworkListeners() {
   const { net } = require('electron');
+  let wasOnline = net.isOnline();
 
-  net.on('online', () => {
-    cacheRefreshBackoff = CACHE_REFRESH_BASE_INTERVAL;
-    refreshTaskCache();     // immediate warm-up
-    processPendingQueue();  // also flush pending actions
-  });
-
-  net.on('offline', () => {
-    if (cacheRefreshTimer) {
-      clearTimeout(cacheRefreshTimer);
-      cacheRefreshTimer = null;
+  networkPollTimer = setInterval(() => {
+    const isNowOnline = net.isOnline();
+    if (isNowOnline && !wasOnline) {
+      // Came back online
+      cacheRefreshBackoff = CACHE_REFRESH_BASE_INTERVAL;
+      refreshTaskCache();
+      processPendingQueue();
+    } else if (!isNowOnline && wasOnline) {
+      // Went offline
+      if (cacheRefreshTimer) {
+        clearTimeout(cacheRefreshTimer);
+        cacheRefreshTimer = null;
+      }
     }
-  });
+    wasOnline = isNowOnline;
+  }, 5000);
 }
 
 // --- IPC Handlers ---
@@ -866,6 +877,13 @@ ipcMain.handle('save-settings', async (_event, settings) => {
 
     // Update tray menu (enable "Show Quick Entry" / "Show Quick View")
     updateTrayMenu();
+
+    // Notify viewer to invalidate stale cache (filters may have changed)
+    try {
+      if (viewerWindow && !viewerWindow.isDestroyed()) {
+        viewerWindow.webContents.send('sync-completed');
+      }
+    } catch { /* ignore */ }
 
     if (isStandalone) {
       // No sync in standalone mode
@@ -1110,6 +1128,7 @@ ipcMain.handle('set-viewer-height', (_event, height) => {
   if (!viewerWindow || viewerWindow.isDestroyed()) return;
   const clamped = Math.max(60, Math.min(460, Math.round(height)));
   viewerDesiredHeight = clamped;
+  if (!viewerWindow.isVisible()) return;
   const [currentWidth] = viewerWindow.getSize();
   isResettingViewerHeight = true;
   viewerWindow.setSize(currentWidth, clamped);
@@ -1203,6 +1222,10 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   stopSyncTimer();
   stopCacheRefresh();
+  if (networkPollTimer) {
+    clearInterval(networkPollTimer);
+    networkPollTimer = null;
+  }
 });
 
 app.on('window-all-closed', () => {
