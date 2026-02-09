@@ -733,7 +733,12 @@ ipcMain.handle('save-task', async (_event, title, description, dueDate, projectI
   const result = await createTask(title, description, dueDate, projectId);
 
   if (result.success) {
-    // Task saved to server — also try to flush pending queue
+    // Notify viewer to invalidate stale cache
+    try {
+      if (viewerWindow && !viewerWindow.isDestroyed()) {
+        viewerWindow.webContents.send('sync-completed');
+      }
+    } catch { /* ignore */ }
     processPendingQueue();
     return result;
   }
@@ -1109,12 +1114,6 @@ ipcMain.handle('set-viewer-height', (_event, height) => {
   isResettingViewerHeight = true;
   viewerWindow.setSize(currentWidth, clamped);
   isResettingViewerHeight = false;
-});
-
-ipcMain.on('focus-viewer', () => {
-  if (viewerWindow && !viewerWindow.isDestroyed() && !viewerWindow.isFocused()) {
-    viewerWindow.focus();
-  }
 });
 
 // --- Standalone mode IPC ---

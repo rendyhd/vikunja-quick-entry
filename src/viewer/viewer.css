@@ -66,6 +66,7 @@ html, body {
 
 /* Task list */
 .task-list {
+  -webkit-app-region: no-drag;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
