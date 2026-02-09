@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('viewerApi', {
   updateTask: (taskId, taskData) => ipcRenderer.invoke('update-task', taskId, taskData),
   openTaskInBrowser: (taskId) => ipcRenderer.invoke('open-task-in-browser', taskId),
   closeWindow: () => ipcRenderer.invoke('close-viewer'),
+  focusWindow: () => ipcRenderer.send('focus-viewer'),
   setHeight: (height) => ipcRenderer.invoke('set-viewer-height', height),
   getPendingCount: () => ipcRenderer.invoke('get-pending-count'),
   getConfig: () => ipcRenderer.invoke('get-config'),

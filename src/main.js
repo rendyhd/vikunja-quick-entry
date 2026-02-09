@@ -1111,6 +1111,12 @@ ipcMain.handle('set-viewer-height', (_event, height) => {
   isResettingViewerHeight = false;
 });
 
+ipcMain.on('focus-viewer', () => {
+  if (viewerWindow && !viewerWindow.isDestroyed() && !viewerWindow.isFocused()) {
+    viewerWindow.focus();
+  }
+});
+
 // --- Standalone mode IPC ---
 ipcMain.handle('get-standalone-task-count', () => {
   return getAllStandaloneTasks().length;

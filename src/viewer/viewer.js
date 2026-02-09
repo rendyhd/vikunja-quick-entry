@@ -15,6 +15,10 @@ const completedTasks = new Map();
 // Track which completions were cached (offline) vs synced
 const cachedCompletions = new Set();
 
+document.addEventListener('mouseenter', () => {
+  window.viewerApi.focusWindow();
+});
+
 function measureContentHeight() {
   let height = 2; // container border: 1px top + 1px bottom
   if (!statusBar.classList.contains('hidden')) {
