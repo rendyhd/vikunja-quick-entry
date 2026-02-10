@@ -25,12 +25,19 @@ body {
 
 /* Drag handle — visible on hover */
 .drag-handle {
-  -webkit-app-region: drag;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 14px;
   flex-shrink: 0;
+}
+
+.drag-handle-surface {
+  -webkit-app-region: drag;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
 }
 
 .drag-handle-pill {
@@ -40,6 +47,7 @@ body {
   background: rgba(0, 0, 0, 0.15);
   opacity: 0;
   transition: opacity 200ms ease;
+  pointer-events: none;
 }
 
 .drag-handle:hover .drag-handle-pill {
