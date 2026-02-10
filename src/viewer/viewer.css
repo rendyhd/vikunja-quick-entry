@@ -16,21 +16,14 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Drag handle — visible on hover */
+/* Drag handle — visible on hover (hover driven by main-process cursor polling) */
 .drag-handle {
-  position: relative;
+  -webkit-app-region: drag;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 14px;
   flex-shrink: 0;
-}
-
-.drag-handle-surface {
-  -webkit-app-region: drag;
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
 }
 
 .drag-handle-pill {
@@ -43,7 +36,7 @@ html, body {
   pointer-events: none;
 }
 
-.drag-handle:hover .drag-handle-pill {
+.drag-handle.hover .drag-handle-pill {
   opacity: 1;
 }
 

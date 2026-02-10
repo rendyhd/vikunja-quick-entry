@@ -101,6 +101,9 @@ let isResettingViewerHeight = false;
 const SHADOW_PADDING = 20; // px of transparent space around container for CSS box-shadow
 const DRAG_HANDLE_HEIGHT = 14;
 let viewerDesiredHeight = 460 + DRAG_HANDLE_HEIGHT + SHADOW_PADDING * 2;
+let dragHoverTimer = null;
+let mainWindowDragHover = false;
+let viewerWindowDragHover = false;
 let cacheRefreshTimer = null;
 let isRefreshingCache = false;
 let cacheRefreshBackoff = 30000;
@@ -223,6 +226,7 @@ function showWindow() {
   mainWindow.show();
   mainWindow.focus();
   mainWindow.webContents.send('window-shown');
+  startDragHoverPolling();
 
   // Opportunistically try to sync pending queue when user activates window
   processPendingQueue();
@@ -241,6 +245,7 @@ function hideWindow() {
   if (!mainWindow) return;
   mainWindow.webContents.send('window-hidden');
   mainWindow.hide();
+  stopDragHoverPolling();
   returnFocusToPreviousWindow();
 }
 
@@ -345,6 +350,7 @@ function showViewer() {
   viewerWindow.show();
   viewerWindow.focus();
   viewerWindow.webContents.send('viewer-shown');
+  startDragHoverPolling();
 
   // Opportunistically try to sync pending queue when user activates viewer
   processPendingQueue();
@@ -362,6 +368,7 @@ function centerViewer() {
 function hideViewer() {
   if (!viewerWindow) return;
   viewerWindow.hide();
+  stopDragHoverPolling();
   returnFocusToPreviousWindow();
 }
 
@@ -705,6 +712,44 @@ function stopCacheRefresh() {
   }
   cacheRefreshBackoff = CACHE_REFRESH_BASE_INTERVAL;
   isRefreshingCache = false;
+}
+
+// --- Drag Handle Hover Polling ---
+// CSS :hover doesn't work on -webkit-app-region: drag elements (Electron limitation).
+// Poll cursor position from the main process and send IPC to toggle a CSS class.
+function checkDragHover(win, prevHover) {
+  if (!win || win.isDestroyed() || !win.isVisible()) return prevHover;
+  const bounds = win.getBounds();
+  const cursor = screen.getCursorScreenPoint();
+  const inRegion =
+    cursor.x >= bounds.x + SHADOW_PADDING &&
+    cursor.x < bounds.x + bounds.width - SHADOW_PADDING &&
+    cursor.y >= bounds.y + SHADOW_PADDING &&
+    cursor.y < bounds.y + SHADOW_PADDING + DRAG_HANDLE_HEIGHT;
+  if (inRegion !== prevHover) {
+    try { win.webContents.send('drag-hover', inRegion); } catch { /* ignore */ }
+  }
+  return inRegion;
+}
+
+function startDragHoverPolling() {
+  if (dragHoverTimer) return;
+  dragHoverTimer = setInterval(() => {
+    mainWindowDragHover = checkDragHover(mainWindow, mainWindowDragHover);
+    viewerWindowDragHover = checkDragHover(viewerWindow, viewerWindowDragHover);
+  }, 50);
+}
+
+function stopDragHoverPolling() {
+  const mainVisible = mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible();
+  const viewerVisible = viewerWindow && !viewerWindow.isDestroyed() && viewerWindow.isVisible();
+  if (mainVisible || viewerVisible) return; // still have a visible window
+  if (dragHoverTimer) {
+    clearInterval(dragHoverTimer);
+    dragHoverTimer = null;
+  }
+  mainWindowDragHover = false;
+  viewerWindowDragHover = false;
 }
 
 let networkPollTimer = null;
@@ -1226,6 +1271,10 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   stopSyncTimer();
   stopCacheRefresh();
+  if (dragHoverTimer) {
+    clearInterval(dragHoverTimer);
+    dragHoverTimer = null;
+  }
   if (networkPollTimer) {
     clearInterval(networkPollTimer);
     networkPollTimer = null;

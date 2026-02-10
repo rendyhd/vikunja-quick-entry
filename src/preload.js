@@ -14,4 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   onSyncCompleted: (callback) => {
     ipcRenderer.on('sync-completed', callback);
   },
+  onDragHover: (callback) => {
+    ipcRenderer.on('drag-hover', callback);
+  },
 });

@@ -2,6 +2,7 @@ const container = document.getElementById('container');
 const taskList = document.getElementById('task-list');
 const errorMessage = document.getElementById('error-message');
 const statusBar = document.getElementById('status-bar');
+const dragHandle = document.querySelector('.drag-handle');
 
 let errorTimeout = null;
 let selectedIndex = -1;
@@ -637,6 +638,10 @@ window.viewerApi.onShowWindow(async () => {
 window.viewerApi.onSyncCompleted(async () => {
   // Reload tasks to reflect synced state
   await loadTasks(true);
+});
+
+window.viewerApi.onDragHover((_, hovering) => {
+  if (dragHandle) dragHandle.classList.toggle('hover', hovering);
 });
 
 // Keyboard handling
