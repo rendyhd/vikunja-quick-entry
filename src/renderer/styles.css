@@ -23,9 +23,31 @@ body {
   padding: 0;
 }
 
+/* Drag handle — visible on hover */
+.drag-handle {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.drag-handle-pill {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.drag-handle:hover .drag-handle-pill {
+  opacity: 1;
+}
+
 /* Container card */
 .container {
-  -webkit-app-region: drag;
   width: 100%;
   background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
@@ -151,6 +173,10 @@ body {
 
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
+  .drag-handle-pill {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
   .container {
     background: rgba(30, 30, 30, 0.90);
     border-color: rgba(255, 255, 255, 0.08);
