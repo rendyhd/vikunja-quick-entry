@@ -50,15 +50,16 @@ html, body {
 /* Container card */
 .container {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
   background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
   opacity: 0;
   transform: translateY(-4px);
   transition: opacity 150ms ease, transform 150ms ease;
@@ -430,6 +431,7 @@ html, body {
   .container {
     background: rgba(30, 30, 30, 0.90);
     border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.2);
   }
 
   .loading {

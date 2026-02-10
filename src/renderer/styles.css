@@ -20,7 +20,7 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 0;
+  padding: 20px;
 }
 
 /* Drag handle — visible on hover */
@@ -62,6 +62,7 @@ body {
   -webkit-backdrop-filter: blur(20px);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
   opacity: 0;
   transform: translateY(-4px);
   transition: opacity 150ms ease, transform 150ms ease;
@@ -188,6 +189,7 @@ body {
   .container {
     background: rgba(30, 30, 30, 0.90);
     border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.2);
   }
 
   #task-input {
