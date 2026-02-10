@@ -17,6 +17,10 @@ const cachedCompletions = new Set();
 
 function measureContentHeight() {
   let height = 2; // container border: 1px top + 1px bottom
+  const dragHandle = container.querySelector('.drag-handle');
+  if (dragHandle) {
+    height += dragHandle.offsetHeight;
+  }
   if (!statusBar.classList.contains('hidden')) {
     height += statusBar.offsetHeight;
   }

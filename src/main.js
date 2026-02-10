@@ -99,7 +99,8 @@ let syncTimer = null;
 let isSyncing = false;
 let isResettingViewerHeight = false;
 const SHADOW_PADDING = 20; // px of transparent space around container for CSS box-shadow
-let viewerDesiredHeight = 460 + SHADOW_PADDING * 2;
+const DRAG_HANDLE_HEIGHT = 14;
+let viewerDesiredHeight = 460 + DRAG_HANDLE_HEIGHT + SHADOW_PADDING * 2;
 let cacheRefreshTimer = null;
 let isRefreshingCache = false;
 let cacheRefreshBackoff = 30000;
@@ -256,7 +257,7 @@ function toggleWindow() {
 function createViewerWindow() {
   viewerWindow = new BrowserWindow({
     width: 420 + SHADOW_PADDING * 2,
-    height: 460 + SHADOW_PADDING * 2,
+    height: 460 + DRAG_HANDLE_HEIGHT + SHADOW_PADDING * 2,
     frame: false,
     transparent: true,
     hasShadow: false,
@@ -266,7 +267,7 @@ function createViewerWindow() {
     minWidth: 300 + SHADOW_PADDING * 2,
     maxWidth: 800 + SHADOW_PADDING * 2,
     minHeight: 60 + SHADOW_PADDING * 2,
-    maxHeight: 460 + SHADOW_PADDING * 2,
+    maxHeight: 460 + DRAG_HANDLE_HEIGHT + SHADOW_PADDING * 2,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'viewer-preload.js'),
@@ -1129,7 +1130,7 @@ ipcMain.handle('close-viewer', () => {
 
 ipcMain.handle('set-viewer-height', (_event, height) => {
   if (!viewerWindow || viewerWindow.isDestroyed()) return;
-  const clamped = Math.max(60, Math.min(460, Math.round(height))) + SHADOW_PADDING * 2;
+  const clamped = Math.max(60, Math.min(460 + DRAG_HANDLE_HEIGHT, Math.round(height))) + SHADOW_PADDING * 2;
   viewerDesiredHeight = clamped;
   if (!viewerWindow.isVisible()) return;
   const [currentWidth] = viewerWindow.getSize();
