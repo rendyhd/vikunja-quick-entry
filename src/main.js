@@ -98,7 +98,12 @@ let updateNotification = null;
 let syncTimer = null;
 let isSyncing = false;
 let isResettingViewerHeight = false;
-let viewerDesiredHeight = 460;
+const SHADOW_PADDING = 20; // px of transparent space around container for CSS box-shadow
+const DRAG_HANDLE_HEIGHT = 14;
+let viewerDesiredHeight = 460 + DRAG_HANDLE_HEIGHT + SHADOW_PADDING * 2;
+let dragHoverTimer = null;
+let mainWindowDragHover = false;
+let viewerWindowDragHover = false;
 let cacheRefreshTimer = null;
 let isRefreshingCache = false;
 let cacheRefreshBackoff = 30000;
@@ -109,10 +114,11 @@ const CACHE_REFRESH_JITTER = 0.25;          // +/-25%
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 560,
-    height: 260,
+    width: 560 + SHADOW_PADDING * 2,
+    height: 260 + SHADOW_PADDING * 2,
     frame: false,
     transparent: true,
+    hasShadow: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
@@ -220,6 +226,7 @@ function showWindow() {
   mainWindow.show();
   mainWindow.focus();
   mainWindow.webContents.send('window-shown');
+  startDragHoverPolling();
 
   // Opportunistically try to sync pending queue when user activates window
   processPendingQueue();
@@ -238,6 +245,7 @@ function hideWindow() {
   if (!mainWindow) return;
   mainWindow.webContents.send('window-hidden');
   mainWindow.hide();
+  stopDragHoverPolling();
   returnFocusToPreviousWindow();
 }
 
@@ -253,17 +261,18 @@ function toggleWindow() {
 // --- Viewer Window ---
 function createViewerWindow() {
   viewerWindow = new BrowserWindow({
-    width: 420,
-    height: 460,
+    width: 420 + SHADOW_PADDING * 2,
+    height: 460 + DRAG_HANDLE_HEIGHT + SHADOW_PADDING * 2,
     frame: false,
     transparent: true,
+    hasShadow: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: true,
-    minWidth: 300,
-    maxWidth: 800,
-    minHeight: 60,
-    maxHeight: 460,
+    minWidth: 300 + SHADOW_PADDING * 2,
+    maxWidth: 800 + SHADOW_PADDING * 2,
+    minHeight: 60 + SHADOW_PADDING * 2,
+    maxHeight: 460 + DRAG_HANDLE_HEIGHT + SHADOW_PADDING * 2,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'viewer-preload.js'),
@@ -341,6 +350,7 @@ function showViewer() {
   viewerWindow.show();
   viewerWindow.focus();
   viewerWindow.webContents.send('viewer-shown');
+  startDragHoverPolling();
 
   // Opportunistically try to sync pending queue when user activates viewer
   processPendingQueue();
@@ -358,6 +368,7 @@ function centerViewer() {
 function hideViewer() {
   if (!viewerWindow) return;
   viewerWindow.hide();
+  stopDragHoverPolling();
   returnFocusToPreviousWindow();
 }
 
@@ -701,6 +712,44 @@ function stopCacheRefresh() {
   }
   cacheRefreshBackoff = CACHE_REFRESH_BASE_INTERVAL;
   isRefreshingCache = false;
+}
+
+// --- Drag Handle Hover Polling ---
+// CSS :hover doesn't work on -webkit-app-region: drag elements (Electron limitation).
+// Poll cursor position from the main process and send IPC to toggle a CSS class.
+function checkDragHover(win, prevHover) {
+  if (!win || win.isDestroyed() || !win.isVisible()) return prevHover;
+  const bounds = win.getBounds();
+  const cursor = screen.getCursorScreenPoint();
+  const inRegion =
+    cursor.x >= bounds.x + SHADOW_PADDING &&
+    cursor.x < bounds.x + bounds.width - SHADOW_PADDING &&
+    cursor.y >= bounds.y + SHADOW_PADDING &&
+    cursor.y < bounds.y + SHADOW_PADDING + DRAG_HANDLE_HEIGHT;
+  if (inRegion !== prevHover) {
+    try { win.webContents.send('drag-hover', inRegion); } catch { /* ignore */ }
+  }
+  return inRegion;
+}
+
+function startDragHoverPolling() {
+  if (dragHoverTimer) return;
+  dragHoverTimer = setInterval(() => {
+    mainWindowDragHover = checkDragHover(mainWindow, mainWindowDragHover);
+    viewerWindowDragHover = checkDragHover(viewerWindow, viewerWindowDragHover);
+  }, 50);
+}
+
+function stopDragHoverPolling() {
+  const mainVisible = mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible();
+  const viewerVisible = viewerWindow && !viewerWindow.isDestroyed() && viewerWindow.isVisible();
+  if (mainVisible || viewerVisible) return; // still have a visible window
+  if (dragHoverTimer) {
+    clearInterval(dragHoverTimer);
+    dragHoverTimer = null;
+  }
+  mainWindowDragHover = false;
+  viewerWindowDragHover = false;
 }
 
 let networkPollTimer = null;
@@ -1126,7 +1175,7 @@ ipcMain.handle('close-viewer', () => {
 
 ipcMain.handle('set-viewer-height', (_event, height) => {
   if (!viewerWindow || viewerWindow.isDestroyed()) return;
-  const clamped = Math.max(60, Math.min(460, Math.round(height)));
+  const clamped = Math.max(60, Math.min(460 + DRAG_HANDLE_HEIGHT, Math.round(height))) + SHADOW_PADDING * 2;
   viewerDesiredHeight = clamped;
   if (!viewerWindow.isVisible()) return;
   const [currentWidth] = viewerWindow.getSize();
@@ -1222,6 +1271,10 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   stopSyncTimer();
   stopCacheRefresh();
+  if (dragHoverTimer) {
+    clearInterval(dragHoverTimer);
+    dragHoverTimer = null;
+  }
   if (networkPollTimer) {
     clearInterval(networkPollTimer);
     networkPollTimer = null;

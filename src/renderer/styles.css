@@ -20,18 +20,42 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 0;
+  padding: 20px;
+}
+
+/* Drag handle — visible on hover (hover driven by main-process cursor polling) */
+.drag-handle {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.drag-handle-pill {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.drag-handle.hover .drag-handle-pill {
+  opacity: 1;
 }
 
 /* Container card */
 .container {
-  -webkit-app-region: drag;
   width: 100%;
   background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
   opacity: 0;
   transform: translateY(-4px);
   transition: opacity 150ms ease, transform 150ms ease;
@@ -151,9 +175,14 @@ body {
 
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
+  .drag-handle-pill {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
   .container {
     background: rgba(30, 30, 30, 0.90);
     border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.2);
   }
 
   #task-input {

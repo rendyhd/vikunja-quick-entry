@@ -2,6 +2,7 @@ const container = document.getElementById('container');
 const taskList = document.getElementById('task-list');
 const errorMessage = document.getElementById('error-message');
 const statusBar = document.getElementById('status-bar');
+const dragHandle = document.querySelector('.drag-handle');
 
 let errorTimeout = null;
 let selectedIndex = -1;
@@ -17,6 +18,10 @@ const cachedCompletions = new Set();
 
 function measureContentHeight() {
   let height = 2; // container border: 1px top + 1px bottom
+  const dragHandle = container.querySelector('.drag-handle');
+  if (dragHandle) {
+    height += dragHandle.offsetHeight;
+  }
   if (!statusBar.classList.contains('hidden')) {
     height += statusBar.offsetHeight;
   }
@@ -633,6 +638,10 @@ window.viewerApi.onShowWindow(async () => {
 window.viewerApi.onSyncCompleted(async () => {
   // Reload tasks to reflect synced state
   await loadTasks(true);
+});
+
+window.viewerApi.onDragHover((_, hovering) => {
+  if (dragHandle) dragHandle.classList.toggle('hover', hovering);
 });
 
 // Keyboard handling

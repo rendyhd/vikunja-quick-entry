@@ -9,6 +9,7 @@ const projectHint = document.getElementById('project-hint');
 const projectName = document.getElementById('project-name');
 const pendingIndicator = document.getElementById('pending-indicator');
 const pendingCount = document.getElementById('pending-count');
+const dragHandle = document.querySelector('.drag-handle');
 
 let errorTimeout = null;
 let exclamationTodayEnabled = true;
@@ -224,6 +225,10 @@ window.api.onShowWindow(async () => {
 // When background sync completes, update the pending count
 window.api.onSyncCompleted(async () => {
   await updatePendingIndicator();
+});
+
+window.api.onDragHover((_, hovering) => {
+  if (dragHandle) dragHandle.classList.toggle('hover', hovering);
 });
 
 // Keyboard handling on title input
