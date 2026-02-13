@@ -65,11 +65,11 @@ Grab the latest installer for your OS from the [Releases](../../releases) page.
 
 | Platform | Format |
 |----------|--------|
-| Windows  | `.exe` (Squirrel installer) |
+| Windows  | `.msi` (Windows Installer) |
 | macOS    | `.dmg` |
 | Linux    | `.deb`, `.rpm` |
 
-> **Windows note:** The Squirrel installer runs immediately without a confirmation dialog.
+> **Windows note:** The MSI installer shows a setup wizard and installs to Program Files by default (requires administrator privileges).
 
 ### macOS — First launch
 
@@ -278,7 +278,7 @@ Renderers are fully sandboxed (`sandbox: true`, `contextIsolation: true`, `nodeI
 npm run make
 ```
 
-Produces platform-specific installers in `out/make/` — Squirrel `.exe` on Windows, `.dmg` on macOS, `.deb` and `.rpm` on Linux.
+Produces platform-specific installers in `out/make/` — WiX `.msi` on Windows, `.dmg` on macOS, `.deb` and `.rpm` on Linux.
 
 ### CI/CD
 

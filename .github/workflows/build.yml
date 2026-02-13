@@ -16,7 +16,7 @@ jobs:
         include:
           - os: windows-latest
             artifact-name: windows
-            artifact-path: out/make/squirrel.windows/x64/*.exe
+            artifact-path: out/make/wix/x64/*.msi
           - os: macos-latest
             artifact-name: macos
             artifact-path: out/make/*.dmg
@@ -51,6 +51,15 @@ jobs:
 
       - name: Build installer
         run: npm run make
+
+      - name: Rename Windows artifacts
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for f in out/make/wix/x64/*.msi; do
+            mv "$f" "out/make/wix/x64/Vikunja-Quick-Entry-${VERSION}-Setup.msi"
+          done
 
       - name: Rename macOS artifacts
         if: runner.os == 'macOS'

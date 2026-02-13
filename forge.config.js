@@ -1,6 +1,5 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
-const version = process.env.BUILD_VERSION || require('./package.json').version;
 
 module.exports = {
   packagerConfig: {
@@ -11,11 +10,16 @@ module.exports = {
   },
   makers: [
     {
-      name: '@electron-forge/maker-squirrel',
+      name: '@electron-forge/maker-wix',
       config: {
-        name: 'vikunja-quick-entry',
-        setupExe: `Vikunja-Quick-Entry-${version}-Setup.exe`,
-        setupIcon: './assets/icon.ico',
+        name: 'Vikunja Quick Entry',
+        manufacturer: 'rendyhd',
+        icon: './assets/icon.ico',
+        appUserModelId: 'com.rendyhd.vikunja-quick-entry',
+        upgradeCode: '719A9696-4EFB-47E2-8E70-2194481BE6BA',
+        ui: {
+          chooseDirectory: true,
+        },
       },
     },
     {
