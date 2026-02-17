@@ -6,6 +6,7 @@ const {
   globalShortcut,
   ipcMain,
   nativeImage,
+  nativeTheme,
   Notification,
   shell,
   dialog,
@@ -13,9 +14,10 @@ const {
 } = require('electron');
 const path = require('path');
 const { getConfig, saveConfig } = require('./config');
-const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate, updateTask } = require('./api');
+const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate, updateTask, fetchProjectViews, fetchViewTasks } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
+const { initNotifications, rescheduleNotifications, stopNotifications, sendTestNotification } = require('./notifications');
 const {
   addPendingAction,
   removePendingAction,
@@ -123,8 +125,8 @@ function createSettingsWindow() {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 520,
-    height: 700,
+    width: 480,
+    height: 580,
     frame: true,
     transparent: false,
     alwaysOnTop: false,
@@ -151,6 +153,8 @@ function createSettingsWindow() {
 
   settingsWindow.on('closed', () => {
     settingsWindow = null;
+    // Revert theme to saved config (reverts live preview if user cancelled)
+    nativeTheme.themeSource = (config && config.theme) || 'system';
     if (app.dock) {
       app.dock.hide();
     }
@@ -592,6 +596,54 @@ function stopSyncTimer() {
   }
 }
 
+// --- View ID Cache (for position-based sorting) ---
+const viewIdCache = new Map();
+
+async function getListViewId(projectId) {
+  if (viewIdCache.has(projectId)) {
+    return viewIdCache.get(projectId);
+  }
+
+  const result = await fetchProjectViews(projectId);
+  if (!result.success || !Array.isArray(result.data)) {
+    return null;
+  }
+
+  // Find the "list" view — Vikunja creates one by default for every project
+  const listView = result.data.find((v) => v.view_kind === 'list') || result.data[0];
+  if (!listView) return null;
+
+  viewIdCache.set(projectId, listView.id);
+  return listView.id;
+}
+
+async function fetchTasksByPosition(filterParams) {
+  const projectIds = filterParams.project_ids;
+  if (!projectIds || projectIds.length === 0) {
+    return { success: false, error: 'Position sort requires specific projects to be selected' };
+  }
+
+  const allTasks = [];
+
+  for (const projectId of projectIds) {
+    const viewId = await getListViewId(projectId);
+    if (!viewId) continue;
+
+    const result = await fetchViewTasks(projectId, viewId, filterParams);
+    if (result.success && Array.isArray(result.data)) {
+      allTasks.push(...result.data);
+    } else if (result.error && !isRetriableError(result.error)) {
+      // Non-retriable error on a single project — skip it
+      continue;
+    } else if (result.error) {
+      // Retriable error — propagate so caller can fall back to cache
+      return result;
+    }
+  }
+
+  return { success: true, tasks: allTasks };
+}
+
 // --- Background Task Cache Refresh ---
 function buildFilterParams() {
   if (!config || !config.viewer_filter) return null;
@@ -625,7 +677,9 @@ async function refreshTaskCache() {
     const filterParams = buildFilterParams();
     if (!filterParams) return;
 
-    const result = await fetchTasks(filterParams);
+    const result = filterParams.sort_by === 'position'
+      ? await fetchTasksByPosition(filterParams)
+      : await fetchTasks(filterParams);
 
     if (result.success) {
       setCachedTasks(result.tasks);
@@ -806,8 +860,29 @@ ipcMain.handle('get-full-config', () => {
         secondary_projects: config.secondary_projects || [],
         project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
         standalone_mode: config.standalone_mode === true,
+        theme: config.theme || 'system',
+        // Notification settings
+        notifications_enabled: config.notifications_enabled,
+        notifications_persistent: config.notifications_persistent,
+        notifications_daily_reminder_enabled: config.notifications_daily_reminder_enabled,
+        notifications_daily_reminder_time: config.notifications_daily_reminder_time,
+        notifications_secondary_reminder_enabled: config.notifications_secondary_reminder_enabled,
+        notifications_secondary_reminder_time: config.notifications_secondary_reminder_time,
+        notifications_overdue_enabled: config.notifications_overdue_enabled,
+        notifications_due_today_enabled: config.notifications_due_today_enabled,
+        notifications_upcoming_enabled: config.notifications_upcoming_enabled,
+        notifications_sound: config.notifications_sound,
       }
     : null;
+});
+
+ipcMain.handle('preview-theme', (_event, theme) => {
+  const valid = ['system', 'light', 'dark'];
+  nativeTheme.themeSource = valid.includes(theme) ? theme : 'system';
+});
+
+ipcMain.handle('test-notification', () => {
+  sendTestNotification();
 });
 
 ipcMain.handle('save-settings', async (_event, settings) => {
@@ -840,6 +915,18 @@ ipcMain.handle('save-settings', async (_event, settings) => {
         include_today_all_projects: false,
       },
       secondary_projects: Array.isArray(settings.secondary_projects) ? settings.secondary_projects : [],
+      theme: settings.theme || 'system',
+      // Notification settings
+      notifications_enabled: settings.notifications_enabled === true,
+      notifications_persistent: settings.notifications_persistent === true,
+      notifications_daily_reminder_enabled: settings.notifications_daily_reminder_enabled !== false,
+      notifications_daily_reminder_time: settings.notifications_daily_reminder_time || '08:00',
+      notifications_secondary_reminder_enabled: settings.notifications_secondary_reminder_enabled === true,
+      notifications_secondary_reminder_time: settings.notifications_secondary_reminder_time || '16:00',
+      notifications_overdue_enabled: settings.notifications_overdue_enabled !== false,
+      notifications_due_today_enabled: settings.notifications_due_today_enabled !== false,
+      notifications_upcoming_enabled: settings.notifications_upcoming_enabled === true,
+      notifications_sound: settings.notifications_sound !== false,
     };
 
     // Preserve window positions from existing config
@@ -855,6 +942,12 @@ ipcMain.handle('save-settings', async (_event, settings) => {
 
     // Reload config
     config = getConfig();
+
+    // Apply saved theme
+    nativeTheme.themeSource = config.theme || 'system';
+
+    // Reschedule notifications with updated config
+    rescheduleNotifications();
 
     // Re-register hotkeys
     globalShortcut.unregisterAll();
@@ -936,7 +1029,9 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
     return { success: false, error: 'No filter configuration' };
   }
 
-  const result = await fetchTasks(filterParams);
+  const result = filterParams.sort_by === 'position'
+    ? await fetchTasksByPosition(filterParams)
+    : await fetchTasks(filterParams);
 
   if (result.success) {
     // Cache the fresh task list for offline use
@@ -1180,12 +1275,19 @@ ipcMain.handle('upload-standalone-tasks', async (_event, url, token, projectId) 
 
 // --- App Lifecycle ---
 app.on('ready', async () => {
+  // Required for Windows toast notifications
+  app.setAppUserModelId('com.vikunja-quick-entry.app');
+
   // Hide dock icon on macOS (no-op on Windows, but good practice)
   if (app.dock) {
     app.dock.hide();
   }
 
   config = getConfig();
+
+  if (config) {
+    nativeTheme.themeSource = config.theme || 'system';
+  }
 
   createTray();
   if (!config || config.auto_check_updates) {
@@ -1202,6 +1304,9 @@ app.on('ready', async () => {
   createViewerWindow();
   registerShortcuts();
   app.setLoginItemSettings({ openAtLogin: config.launch_on_startup });
+
+  // Initialize notification scheduler (works in both server and standalone modes)
+  initNotifications(() => config, showViewer);
 
   if (!config.standalone_mode) {
     // Start background sync for offline queue (not needed in standalone mode)
@@ -1226,6 +1331,7 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   stopSyncTimer();
   stopCacheRefresh();
+  stopNotifications();
   if (dragHoverTimer) {
     clearInterval(dragHoverTimer);
     dragHoverTimer = null;

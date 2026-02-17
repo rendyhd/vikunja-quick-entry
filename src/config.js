@@ -83,6 +83,18 @@ function getConfig() {
       include_today_all_projects: (config.viewer_filter && config.viewer_filter.include_today_all_projects) === true,
     },
     secondary_projects: Array.isArray(config.secondary_projects) ? config.secondary_projects : [],
+    theme: config.theme || 'system',
+    // Notification settings
+    notifications_enabled: config.notifications_enabled === true,
+    notifications_persistent: config.notifications_persistent === true,
+    notifications_daily_reminder_enabled: config.notifications_daily_reminder_enabled !== false,
+    notifications_daily_reminder_time: config.notifications_daily_reminder_time || '08:00',
+    notifications_secondary_reminder_enabled: config.notifications_secondary_reminder_enabled === true,
+    notifications_secondary_reminder_time: config.notifications_secondary_reminder_time || '16:00',
+    notifications_overdue_enabled: config.notifications_overdue_enabled !== false,
+    notifications_due_today_enabled: config.notifications_due_today_enabled !== false,
+    notifications_upcoming_enabled: config.notifications_upcoming_enabled === true,
+    notifications_sound: config.notifications_sound !== false,
   };
 }
 

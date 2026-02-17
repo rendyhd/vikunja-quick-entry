@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld('settingsApi', {
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   getStandaloneTaskCount: () => ipcRenderer.invoke('get-standalone-task-count'),
   uploadStandaloneTasks: (url, token, projectId) => ipcRenderer.invoke('upload-standalone-tasks', url, token, projectId),
+  previewTheme: (theme) => ipcRenderer.invoke('preview-theme', theme),
+  testNotification: () => ipcRenderer.invoke('test-notification'),
 });

@@ -20,13 +20,25 @@ const cycleShortcutDisplay = document.getElementById('cycle-shortcut-display');
 // --- Quick View elements ---
 const viewerHotkeyDisplay = document.getElementById('viewer-hotkey-display');
 const recordViewerHotkeyBtn = document.getElementById('record-viewer-hotkey');
-const viewerProjectsList = document.getElementById('viewer-projects-list');
+const viewerListSelect = document.getElementById('viewer-list-select');
 const loadViewerProjectsBtn = document.getElementById('load-viewer-projects');
 const viewerProjectStatus = document.getElementById('viewer-project-status');
-const viewerSortBy = document.getElementById('viewer-sort-by');
-const viewerOrderBy = document.getElementById('viewer-order-by');
-const viewerDueDateFilter = document.getElementById('viewer-due-date-filter');
 const viewerIncludeToday = document.getElementById('viewer-include-today');
+const viewerIncludeTodayGroup = document.getElementById('viewer-include-today-group');
+
+// --- Notification elements ---
+const notificationsEnabled = document.getElementById('notifications-enabled');
+const notificationOptions = document.getElementById('notification-options');
+const notifDailyEnabled = document.getElementById('notifications-daily-enabled');
+const notifDailyTime = document.getElementById('notifications-daily-time');
+const notifSecondaryEnabled = document.getElementById('notifications-secondary-enabled');
+const notifSecondaryTime = document.getElementById('notifications-secondary-time');
+const notifOverdue = document.getElementById('notifications-overdue');
+const notifDueToday = document.getElementById('notifications-due-today');
+const notifUpcoming = document.getElementById('notifications-upcoming');
+const notifPersistent = document.getElementById('notifications-persistent');
+const notifSound = document.getElementById('notifications-sound');
+const testNotificationBtn = document.getElementById('test-notification-btn');
 
 // --- Standalone mode elements ---
 const standaloneMode = document.getElementById('standalone-mode');
@@ -37,6 +49,9 @@ const uploadDialogMessage = document.getElementById('upload-dialog-message');
 const uploadYesBtn = document.getElementById('upload-yes');
 const uploadNoBtn = document.getElementById('upload-no');
 const uploadStatus = document.getElementById('upload-status');
+
+// --- Theme element ---
+const themeSelect = document.getElementById('theme-select');
 
 // --- Shared elements ---
 const githubLink = document.getElementById('github-link');
@@ -154,6 +169,21 @@ uploadNoBtn.addEventListener('click', async () => {
   }
 });
 
+// --- Theme live preview ---
+themeSelect.addEventListener('change', () => {
+  window.settingsApi.previewTheme(themeSelect.value);
+});
+
+// --- Notification master toggle ---
+notificationsEnabled.addEventListener('change', () => {
+  notificationOptions.disabled = !notificationsEnabled.checked;
+});
+
+// --- Test notification ---
+testNotificationBtn.addEventListener('click', () => {
+  window.settingsApi.testNotification();
+});
+
 // --- Tab switching ---
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
@@ -191,15 +221,28 @@ async function loadExistingConfig() {
   projectCycleModifier.value = config.project_cycle_modifier || 'ctrl';
   updateCycleShortcutDisplay(projectCycleModifier.value);
 
+  // Theme
+  themeSelect.value = config.theme || 'system';
+
   // Quick View settings
   viewerHotkeyDisplay.value = config.viewer_hotkey || 'Alt+Shift+B';
 
   if (config.viewer_filter) {
-    viewerSortBy.value = config.viewer_filter.sort_by || 'due_date';
-    viewerOrderBy.value = config.viewer_filter.order_by || 'asc';
-    viewerDueDateFilter.value = config.viewer_filter.due_date_filter || 'all';
     viewerIncludeToday.checked = config.viewer_filter.include_today_all_projects === true;
   }
+
+  // Notification settings
+  notificationsEnabled.checked = config.notifications_enabled === true;
+  notificationOptions.disabled = !notificationsEnabled.checked;
+  notifDailyEnabled.checked = config.notifications_daily_reminder_enabled !== false;
+  notifDailyTime.value = config.notifications_daily_reminder_time || '08:00';
+  notifSecondaryEnabled.checked = config.notifications_secondary_reminder_enabled === true;
+  notifSecondaryTime.value = config.notifications_secondary_reminder_time || '16:00';
+  notifOverdue.checked = config.notifications_overdue_enabled !== false;
+  notifDueToday.checked = config.notifications_due_today_enabled !== false;
+  notifUpcoming.checked = config.notifications_upcoming_enabled === true;
+  notifPersistent.checked = config.notifications_persistent === true;
+  notifSound.checked = config.notifications_sound !== false;
 
   // If we have URL and token, auto-load projects
   if (config.vikunja_url && config.api_token) {
@@ -212,12 +255,11 @@ async function loadExistingConfig() {
       refreshAddSecondaryDropdown();
     }
 
-    // Populate viewer projects with preselected IDs
+    // Populate viewer list dropdown with preselected project
     if (loadedProjects) {
-      populateViewerProjects(
-        loadedProjects,
-        config.viewer_filter ? config.viewer_filter.project_ids : []
-      );
+      const selectedIds = config.viewer_filter ? config.viewer_filter.project_ids : [];
+      const selectedId = selectedIds.length === 1 ? selectedIds[0] : 0;
+      populateViewerListSelect(loadedProjects, selectedId);
     }
   }
 }
@@ -397,24 +439,36 @@ function setProjectStatus(msg, type) {
   projectStatus.className = 'status-text' + (type ? ` ${type}` : '');
 }
 
-// --- Viewer project loading ---
-function populateViewerProjects(projects, selectedIds) {
-  viewerProjectsList.innerHTML = '';
-  const selectedSet = new Set((selectedIds || []).map(String));
+// --- Viewer list select ---
+function populateViewerListSelect(projects, selectedId) {
+  viewerListSelect.innerHTML = '';
+
+  const allOpt = document.createElement('option');
+  allOpt.value = '0';
+  allOpt.textContent = 'All Projects';
+  viewerListSelect.appendChild(allOpt);
 
   for (const project of projects) {
-    const label = document.createElement('label');
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.value = project.id;
-    cb.checked = selectedSet.size === 0 || selectedSet.has(String(project.id));
-    const span = document.createElement('span');
-    span.textContent = project.title;
-    label.appendChild(cb);
-    label.appendChild(span);
-    viewerProjectsList.appendChild(label);
+    const opt = document.createElement('option');
+    opt.value = project.id;
+    opt.textContent = project.title;
+    viewerListSelect.appendChild(opt);
+  }
+
+  viewerListSelect.disabled = false;
+  viewerListSelect.value = selectedId ? String(selectedId) : '0';
+  updateIncludeTodayVisibility();
+}
+
+function updateIncludeTodayVisibility() {
+  const isSpecificProject = viewerListSelect.value && viewerListSelect.value !== '0';
+  viewerIncludeTodayGroup.hidden = !isSpecificProject;
+  if (!isSpecificProject) {
+    viewerIncludeToday.checked = false;
   }
 }
+
+viewerListSelect.addEventListener('change', updateIncludeTodayVisibility);
 
 loadViewerProjectsBtn.addEventListener('click', async () => {
   const url = urlInput.value.trim();
@@ -446,26 +500,15 @@ loadViewerProjectsBtn.addEventListener('click', async () => {
   }
 
   loadedProjects = result.projects;
-  populateViewerProjects(result.projects, []);
+  populateViewerListSelect(result.projects, 0);
   viewerProjectStatus.textContent = `${result.projects.length} projects loaded.`;
   viewerProjectStatus.className = 'status-text success';
 });
 
 function getSelectedViewerProjectIds() {
-  const checkboxes = viewerProjectsList.querySelectorAll('input[type="checkbox"]');
-  if (checkboxes.length === 0) return [];
-
-  const selected = [];
-  let allChecked = true;
-  for (const cb of checkboxes) {
-    if (cb.checked) {
-      selected.push(Number(cb.value));
-    } else {
-      allChecked = false;
-    }
-  }
-  // If all are selected, return empty array (means "all projects")
-  return allChecked ? [] : selected;
+  const val = viewerListSelect.value;
+  if (!val || val === '0') return [];
+  return [Number(val)];
 }
 
 // --- Hotkey recording (shared utility) ---
@@ -645,14 +688,26 @@ function gatherSettings(overrides = {}) {
     auto_check_updates: autoCheckUpdates.checked,
     project_cycle_modifier: projectCycleModifier.value || 'ctrl',
     viewer_hotkey: viewerHotkeyDisplay.value || 'Alt+Shift+B',
+    theme: themeSelect.value || 'system',
     viewer_filter: {
       project_ids: getSelectedViewerProjectIds(),
-      sort_by: viewerSortBy.value,
-      order_by: viewerOrderBy.value,
-      due_date_filter: viewerDueDateFilter.value,
+      sort_by: 'due_date',
+      order_by: 'asc',
+      due_date_filter: 'all',
       include_today_all_projects: viewerIncludeToday.checked,
     },
     secondary_projects: secondaryProjects.map(p => ({ id: p.id, title: p.title })),
+    // Notification settings
+    notifications_enabled: notificationsEnabled.checked,
+    notifications_persistent: notifPersistent.checked,
+    notifications_daily_reminder_enabled: notifDailyEnabled.checked,
+    notifications_daily_reminder_time: notifDailyTime.value || '08:00',
+    notifications_secondary_reminder_enabled: notifSecondaryEnabled.checked,
+    notifications_secondary_reminder_time: notifSecondaryTime.value || '16:00',
+    notifications_overdue_enabled: notifOverdue.checked,
+    notifications_due_today_enabled: notifDueToday.checked,
+    notifications_upcoming_enabled: notifUpcoming.checked,
+    notifications_sound: notifSound.checked,
     ...overrides,
   };
   return settings;

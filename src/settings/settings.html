@@ -9,12 +9,20 @@
 </head>
 <body>
   <div class="settings-container">
-    <h1>Settings</h1>
+    <div class="settings-header">
+      <h1>Settings</h1>
+      <select id="theme-select" class="theme-select">
+        <option value="system">System</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </div>
 
     <!-- Tab bar -->
     <div class="tab-bar">
       <button class="tab-btn active" data-tab="quick-entry">Quick Entry</button>
       <button class="tab-btn" data-tab="quick-view">Quick View</button>
+      <button class="tab-btn" data-tab="notifications">Notifications</button>
     </div>
 
     <!-- Standalone mode toggle -->
@@ -134,46 +142,18 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Projects to include</label>
-        <div id="viewer-projects-list" class="checkbox-list">
-          <div class="status-text">Load projects from Quick Entry tab first</div>
+      <div class="form-group server-dependent">
+        <label for="viewer-list-select">List</label>
+        <div class="input-row">
+          <select id="viewer-list-select" disabled>
+            <option value="">Load projects first</option>
+          </select>
+          <button id="load-viewer-projects" class="btn-secondary btn-small" type="button">Load Projects</button>
         </div>
-        <button id="load-viewer-projects" class="btn-secondary btn-small" type="button">Load Projects</button>
         <div id="viewer-project-status" class="status-text"></div>
       </div>
 
-      <div class="form-group">
-        <label for="viewer-sort-by">Sort by</label>
-        <div class="input-row">
-          <select id="viewer-sort-by">
-            <option value="due_date">Due date</option>
-            <option value="priority">Priority</option>
-            <option value="created">Date created</option>
-            <option value="updated">Date updated</option>
-            <option value="title">Title</option>
-          </select>
-          <select id="viewer-order-by">
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="viewer-due-date-filter">Due date filter</label>
-        <select id="viewer-due-date-filter">
-          <option value="all">All tasks</option>
-          <option value="overdue">Overdue only</option>
-          <option value="today">Due today or overdue</option>
-          <option value="this_week">Due this week</option>
-          <option value="this_month">Due this month</option>
-          <option value="has_due_date">Has a due date</option>
-          <option value="no_due_date">No due date</option>
-        </select>
-      </div>
-
-      <div class="form-group checkbox-group">
+      <div id="viewer-include-today-group" class="form-group checkbox-group" hidden>
         <label>
           <input id="viewer-include-today" type="checkbox" />
           <span>Include tasks due today from all projects</span>
@@ -189,6 +169,72 @@
         <div class="shortcut-row"><kbd>!</kbd><span>Schedule task for today</span></div>
         <div class="shortcut-row"><kbd>Esc</kbd><span>Close window</span></div>
       </div>
+    </div>
+
+    <!-- Notifications tab -->
+    <div id="tab-notifications" class="tab-content">
+      <div class="form-group checkbox-group">
+        <label>
+          <input id="notifications-enabled" type="checkbox" />
+          <span>Enable desktop notifications</span>
+        </label>
+      </div>
+
+      <fieldset id="notification-options" class="notification-fieldset" disabled>
+        <div class="notification-section">Daily Reminder</div>
+        <div class="form-group checkbox-group notification-time-row">
+          <label>
+            <input id="notifications-daily-enabled" type="checkbox" checked />
+            <span>Morning task summary</span>
+          </label>
+          <input id="notifications-daily-time" type="time" value="08:00" />
+        </div>
+
+        <div class="notification-section">Second Reminder</div>
+        <div class="form-group checkbox-group notification-time-row">
+          <label>
+            <input id="notifications-secondary-enabled" type="checkbox" />
+            <span>Afternoon task summary</span>
+          </label>
+          <input id="notifications-secondary-time" type="time" value="16:00" />
+        </div>
+
+        <div class="notification-section">Include</div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input id="notifications-overdue" type="checkbox" checked />
+            <span>Overdue tasks</span>
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input id="notifications-due-today" type="checkbox" checked />
+            <span>Tasks due today</span>
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input id="notifications-upcoming" type="checkbox" />
+            <span>Tasks due tomorrow</span>
+          </label>
+        </div>
+
+        <div class="notification-section">Behavior</div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input id="notifications-persistent" type="checkbox" />
+            <span>Persistent <span class="label-hint">(stay until dismissed)</span></span>
+          </label>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input id="notifications-sound" type="checkbox" checked />
+            <span>Play sound</span>
+          </label>
+        </div>
+
+        <button id="test-notification-btn" class="btn-secondary btn-small" type="button">Send Test Notification</button>
+      </fieldset>
     </div>
 
     <div id="settings-error" class="error-text" hidden></div>

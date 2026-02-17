@@ -13,15 +13,38 @@ html, body {
 }
 
 .settings-container {
-  max-width: 480px;
-  margin: 0 auto;
+  margin: 0;
   padding: 28px 24px;
 }
 
 h1 {
   font-size: 20px;
   font-weight: 600;
+  margin-bottom: 0;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20px;
+}
+
+.theme-select {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 150ms;
+}
+
+.theme-select:focus {
+  border-color: #4a90d9;
 }
 
 /* Tab bar */
@@ -85,6 +108,7 @@ h1 {
 .form-group input[type="url"],
 .form-group input[type="password"],
 .form-group input[type="text"],
+.form-group input[type="time"],
 .form-group select {
   width: 100%;
   padding: 8px 12px;
@@ -333,6 +357,58 @@ h1 {
   font-size: 11px;
 }
 
+/* Notification fieldset */
+.notification-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.notification-fieldset:disabled {
+  opacity: 0.45;
+}
+
+.notification-fieldset .form-group {
+  margin-bottom: 12px;
+}
+
+.notification-section {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.notification-section:first-child {
+  margin-top: 4px;
+}
+
+.notification-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notification-time-row label {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-time-row input[type="time"] {
+  width: auto;
+  padding: 6px 10px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+#test-notification-btn {
+  margin-top: 16px;
+}
+
 /* Hidden utility */
 .hidden {
   display: none !important;
@@ -465,6 +541,7 @@ h1 {
   .form-group input[type="url"],
   .form-group input[type="password"],
   .form-group input[type="text"],
+  .form-group input[type="time"],
   .form-group select {
     background: #2a2a2a;
     color: #e0e0e0;
@@ -596,6 +673,16 @@ h1 {
     background: #3a2a2a;
   }
 
+  .theme-select {
+    background: #2a2a2a;
+    color: #e0e0e0;
+    border-color: #444;
+  }
+
+  .theme-select:focus {
+    border-color: #5a9be6;
+  }
+
   .standalone-toggle {
     border-bottom-color: #444;
   }
@@ -607,5 +694,9 @@ h1 {
 
   .upload-dialog p {
     color: #ccc;
+  }
+
+  .notification-section {
+    color: #aaa;
   }
 }
