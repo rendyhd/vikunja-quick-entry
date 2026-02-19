@@ -63,16 +63,6 @@
           </div>
         </div>
 
-        <div class="form-group server-dependent">
-          <label for="default-project">Default Project</label>
-          <div class="input-row">
-            <select id="default-project" disabled>
-              <option value="">Enter URL and token first</option>
-            </select>
-            <button id="load-projects" class="btn-secondary" type="button">Load Projects</button>
-          </div>
-          <div id="project-status" class="status-text"></div>
-        </div>
       </div>
 
       <div class="form-group checkbox-group">
@@ -92,6 +82,17 @@
 
     <!-- Quick Entry tab -->
     <div id="tab-quick-entry" class="tab-content">
+      <div class="form-group server-dependent">
+        <label for="default-project">Default Project</label>
+        <div class="input-row">
+          <select id="default-project" disabled>
+            <option value="">Enter URL and token first</option>
+          </select>
+          <button id="load-projects" class="btn-secondary" type="button">Load Projects</button>
+        </div>
+        <div id="project-status" class="status-text"></div>
+      </div>
+
       <div class="form-group server-dependent">
         <label>Secondary Projects <span class="label-hint">(<span id="cycle-shortcut-hint">Ctrl</span>+Arrow to cycle in Quick Entry)</span></label>
         <div id="secondary-projects-list" class="reorder-list"></div>
@@ -311,12 +312,21 @@
 
           <details class="setup-instructions">
             <summary>Setup instructions</summary>
+            <div class="setup-step-header">1. Local REST API <span class="label-hint">(by Adam Coddington)</span></div>
             <ol>
-              <li>Install the <strong>Local REST API</strong> plugin in Obsidian</li>
-              <li>Enable it and copy the API key from plugin settings</li>
-              <li>Install the <strong>Advanced URI</strong> plugin (for stable deep links)</li>
-              <li>Paste the API key above and enter your vault name</li>
+              <li>Open Obsidian &rarr; Settings (gear icon, bottom-left) &rarr; Community Plugins &rarr; Browse</li>
+              <li>Search "Local REST API" &rarr; Install &rarr; Enable</li>
+              <li>Go back to Settings &rarr; scroll to "Local REST API" under Community Plugins</li>
+              <li>The API Key is shown at the top of the plugin's settings panel &mdash; click the copy button and paste it below</li>
+              <li>Leave all other settings at their defaults (HTTPS on port 27124)</li>
             </ol>
+            <div class="setup-step-header">2. Advanced URI <span class="label-hint">(by Vinzent03)</span></div>
+            <ol>
+              <li>Same steps &mdash; search "Advanced URI" in Community Plugins &rarr; Install &rarr; Enable</li>
+              <li>In the plugin settings, turn on "Use UID instead of file paths"</li>
+              <li>This makes note links survive file renames. All other settings can stay at their defaults.</li>
+            </ol>
+            <p class="setup-note">Once both plugins are enabled and Obsidian is running, click Test Connection below to verify.</p>
           </details>
         </div>
       </div>
@@ -349,13 +359,20 @@
 
           <details class="setup-instructions">
             <summary>Setup instructions</summary>
+            <div class="setup-step-header">How it works</div>
+            <p class="setup-description">Vicu automatically reads the URL bar from the active browser window when Quick Entry opens. This works with Chrome, Firefox, Edge, Brave, Opera, and Vivaldi &mdash; no extension required.</p>
+            <div class="setup-step-header">Firefox, Edge, Brave, Opera, Vivaldi</div>
+            <p class="setup-description">No setup needed. Vicu detects URLs automatically via Windows accessibility APIs.</p>
+            <div class="setup-step-header">Chrome <span class="label-hint">(optional extension for instant detection)</span></div>
+            <p class="setup-description">Chrome works without the extension, but installing it provides instant (&lt;1ms) detection instead of the ~300ms fallback.</p>
             <ol>
-              <li>Click <strong>Open Extension Folder</strong> above</li>
-              <li>In Chrome: go to <code>chrome://extensions</code>, enable Developer mode, click "Load unpacked" and select the folder</li>
-              <li>Copy the extension ID and paste it above</li>
-              <li>Click <strong>Register Bridge</strong> to set up the native messaging host</li>
-              <li>Without the extension, browser URLs are detected via window title (slower)</li>
+              <li>Open <code>chrome://extensions</code></li>
+              <li>Enable "Developer mode" (top-right toggle)</li>
+              <li>Click "Load unpacked" &rarr; select the <code>extensions/browser</code> folder</li>
+              <li>Copy the Extension ID shown on the card and paste it in the field above</li>
+              <li>Then click <strong>Re-register Bridge</strong> above</li>
             </ol>
+            <p class="setup-note">Open Quick Entry while a browser tab is active to see the link hint.</p>
           </details>
         </div>
       </div>
