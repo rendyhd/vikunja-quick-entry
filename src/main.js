@@ -181,7 +181,7 @@ async function showWindow() {
 
   // 1. Obsidian detection (before showing window, while previous app still has focus)
   let obsidianCtx = null;
-  if (config && config.obsidian_mode !== 'off' && config.obsidian_api_key && isObsidianForeground()) {
+  if (config && config.obsidian_mode !== 'off' && config.obsidian_api_key && await isObsidianForeground()) {
     obsidianCtx = await Promise.race([
       getObsidianContext(config),
       new Promise((resolve) => setTimeout(() => resolve(null), 350)),
@@ -193,7 +193,7 @@ async function showWindow() {
   if (!obsidianCtx && config && config.browser_link_mode !== 'off') {
     browserCtx = getBrowserContext(); // extension path (<1ms)
     if (!browserCtx) {
-      const fgProcess = getForegroundProcessName();
+      const fgProcess = await getForegroundProcessName();
       if (BROWSER_PROCESSES.has(fgProcess)) {
         browserCtx = await Promise.race([
           getBrowserUrlFromWindow(fgProcess),

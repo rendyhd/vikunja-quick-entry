@@ -132,6 +132,33 @@ function testObsidianConnection(apiKey, port = 27124) {
   });
 }
 
+// --- macOS foreground detection via osascript/JXA ---
+const { execFile } = require('child_process');
+
+const JXA_FOREGROUND_SCRIPT = `(() => {
+  const se = Application("System Events");
+  const procs = se.processes.whose({frontmost: true});
+  if (procs.length === 0) return "null";
+  const proc = procs[0];
+  const name = proc.displayedName();
+  let bid = ""; try { bid = proc.bundleIdentifier(); } catch(e) {}
+  return JSON.stringify({ processName: name, bundleId: bid });
+})()`;
+
+function getForegroundAppMacOS() {
+  return new Promise((resolve) => {
+    execFile('osascript', ['-l', 'JavaScript', '-e', JXA_FOREGROUND_SCRIPT],
+      { timeout: 2000 }, (err, stdout) => {
+        if (err) { resolve(null); return; }
+        try {
+          const result = JSON.parse(stdout.trim());
+          if (result === null) { resolve(null); return; }
+          resolve(result);
+        } catch { resolve(null); }
+      });
+  });
+}
+
 // --- Win32 FFI for foreground window detection ---
 let _fgCheckLoaded = false;
 let _GetForegroundWindow = null;
@@ -163,7 +190,8 @@ function loadForegroundCheck() {
 
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
-function getForegroundProcessName() {
+// Internal sync helper — Windows only, used by the async exports
+function getForegroundProcessNameSync() {
   if (!loadForegroundCheck()) return '';
   try {
     const hwnd = _GetForegroundWindow();
@@ -191,8 +219,32 @@ function getForegroundProcessName() {
   }
 }
 
-function isObsidianForeground() {
-  return getForegroundProcessName() === 'obsidian';
+// Async on all platforms — Windows wraps sync koffi (~1μs), macOS uses osascript (~50ms)
+async function getForegroundProcessName() {
+  if (process.platform === 'win32') {
+    return getForegroundProcessNameSync();
+  }
+
+  if (process.platform === 'darwin') {
+    const app = await getForegroundAppMacOS();
+    return app ? app.processName : '';
+  }
+
+  return '';
+}
+
+async function isObsidianForeground() {
+  if (process.platform === 'win32') {
+    return getForegroundProcessNameSync() === 'obsidian';
+  }
+
+  if (process.platform === 'darwin') {
+    const app = await getForegroundAppMacOS();
+    if (!app) return false;
+    return app.processName === 'Obsidian' || app.bundleId === 'md.obsidian';
+  }
+
+  return false;
 }
 
 async function getObsidianContext(config) {

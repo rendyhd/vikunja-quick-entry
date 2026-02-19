@@ -86,15 +86,51 @@ let wasStandaloneMode = false;
 let saveTimeout = null;
 let initializing = true; // Suppress auto-save during initial load
 
-// --- Platform detection: hide macOS-only elements ---
+// --- Platform detection: hide platform-specific elements + text overrides ---
+const _platform = window.settingsApi.getPlatform();
+const _isMac = _platform === 'darwin';
+
 (function hidePlatformElements() {
-  const platform = window.settingsApi.getPlatform();
-  if (platform === 'darwin') {
+  if (_isMac) {
     document.querySelectorAll('.platform-windows-only').forEach((el) => {
       el.style.display = 'none';
     });
   }
+  if (!_isMac) {
+    document.querySelectorAll('.platform-macos-note').forEach((el) => {
+      el.style.display = 'none';
+    });
+  }
 })();
+
+// macOS-specific text overrides
+if (_isMac) {
+  // Browser integration descriptions
+  const howItWorks = document.getElementById('browser-how-it-works');
+  if (howItWorks) {
+    howItWorks.textContent = 'Vikunja Quick Entry reads the URL from the active browser tab using AppleScript when Quick Entry opens. This works with Chrome, Safari, Edge, Brave, Opera, Vivaldi, and Arc. Firefox has limited support.';
+  }
+  const autoDetect = document.getElementById('browser-auto-detect-note');
+  if (autoDetect) {
+    autoDetect.textContent = 'No setup needed for Chrome, Safari, Edge, Brave, Vivaldi, and Arc. On first use, macOS will ask you to allow control of the browser. Firefox URL detection is unreliable and may not work.';
+  }
+
+  // Obsidian "Ask" option: Ctrl+L → ⌘L
+  const obsidianAskOption = obsidianMode.querySelector('option[value="ask"]');
+  if (obsidianAskOption) obsidianAskOption.textContent = 'Ask (\u2318L to link)';
+
+  // Browser "Ask" option: Ctrl+L → ⌘L
+  const browserAskOption = browserLinkMode.querySelector('option[value="ask"]');
+  if (browserAskOption) browserAskOption.textContent = 'Ask (\u2318L to link)';
+
+  // Project cycle modifier dropdown options
+  const ctrlOption = projectCycleModifier.querySelector('option[value="ctrl"]');
+  if (ctrlOption) ctrlOption.textContent = '\u2318 Cmd + Arrow keys';
+  const altOption = projectCycleModifier.querySelector('option[value="alt"]');
+  if (altOption) altOption.textContent = '\u2325 Option + Arrow keys';
+  const ctrlAltOption = projectCycleModifier.querySelector('option[value="ctrl+alt"]');
+  if (ctrlAltOption) ctrlAltOption.textContent = '\u2318\u2325 Cmd+Option + Arrow keys';
+}
 
 // --- Auto-save ---
 function showSaveStatus(text, type) {
@@ -336,7 +372,7 @@ registerBrowserBtn.addEventListener('click', async () => {
     browserRegistrationStatus.textContent = `Registered: ${parts.join(', ')}`;
     browserRegistrationStatus.className = 'status-text success';
   } else {
-    browserRegistrationStatus.textContent = 'Registration failed (Windows only).';
+    browserRegistrationStatus.textContent = 'Registration failed. Check console for details.';
     browserRegistrationStatus.className = 'status-text error';
   }
 });
@@ -918,14 +954,13 @@ function hideError() {
 
 // --- Project cycle modifier ---
 function updateCycleShortcutDisplay(modifier) {
-  const displayMap = {
-    'ctrl': 'Ctrl',
-    'alt': 'Alt',
-    'ctrl+alt': 'Ctrl+Alt',
-  };
-  const display = displayMap[modifier] || 'Ctrl';
+  const displayMap = _isMac
+    ? { 'ctrl': '\u2318 Cmd', 'alt': '\u2325 Option', 'ctrl+alt': '\u2318\u2325 Cmd+Option' }
+    : { 'ctrl': 'Ctrl', 'alt': 'Alt', 'ctrl+alt': 'Ctrl+Alt' };
+  const display = displayMap[modifier] || (_isMac ? '\u2318 Cmd' : 'Ctrl');
   cycleShortcutHint.textContent = display;
-  cycleShortcutDisplay.textContent = `${display}+Left/Right`;
+  const arrowDisplay = _isMac ? `${display}+\u2190/\u2192` : `${display}+Left/Right`;
+  cycleShortcutDisplay.textContent = arrowDisplay;
 }
 
 projectCycleModifier.addEventListener('change', () => {

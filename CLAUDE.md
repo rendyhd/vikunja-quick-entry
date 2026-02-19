@@ -106,3 +106,21 @@ The `FusesPlugin` in `forge.config.js` flips Electron security fuses, which inva
 ### Security
 
 All renderer windows enforce CSP (`default-src 'self'`). Electron Fuses disable `RunAsNode`, `NodeOptions`, and CLI inspect. `api.js` validates URLs to block non-HTTP(S) protocols.
+
+### Platform-Specific Code
+
+- `src/obsidian-client.js` — Foreground app detection: koffi FFI on Windows (sync, ~1us), osascript/JXA on macOS (async, ~50ms). Both exported as async functions (`getForegroundProcessName`, `isObsidianForeground`).
+- `src/window-url-reader.js` — Browser URL reading: PowerShell + UI Automation on Windows, AppleScript on macOS. `BROWSER_PROCESSES` set uses exe names on Windows (`chrome`, `msedge`) vs display names on macOS (`Google Chrome`, `Safari`, `Arc`).
+- `src/browser-host-registration.js` — Native messaging host: Windows registry + `.bat` wrapper on Windows, filesystem manifests + `.sh` wrapper on macOS.
+- `src/notifications.js` — Cross-platform (Electron Notification API). No platform-specific code.
+- `src/focus.js` — Windows-only focus return trick (macOS returns focus automatically).
+- `src/settings/settings.js` — Platform-aware UI text: macOS shows `⌘`/`⌥` symbols, AppleScript descriptions, and permission notes; Windows shows `Ctrl`/`Alt` and Windows API references.
+
+### macOS Notes
+
+- Foreground detection and browser URL reading use `osascript` (async child process). The exported functions (`getForegroundProcessName`, `isObsidianForeground`) return Promises on all platforms. Callers in `showWindow()` use `await`.
+- First-time browser URL detection triggers a macOS Automation permission prompt ("Vikunja Quick Entry wants to control [browser name]"). User must allow in System Settings > Privacy & Security > Automation.
+- Firefox URL detection on macOS is unreliable — Firefox has no AppleScript dictionary, so it falls back to System Events accessibility (which often fails). Safari, Chrome, Edge, Brave, Arc, Vivaldi, and Opera all work reliably.
+- Native messaging host manifests are written to `~/Library/Application Support/<browser>/NativeMessagingHosts/com.vikunja-quick-entry.browser.json` for Chrome, Edge, and Firefox.
+- The shell wrapper for native messaging is at `~/Library/Application Support/vikunja-quick-entry/vqe-bridge.sh` — placed in `userData` (not inside the `.app` bundle) to avoid invalidating the code signature.
+- Notifications work via Electron's `Notification` API. The first notification triggers a macOS permission prompt (System Settings > Notifications).

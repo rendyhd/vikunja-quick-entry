@@ -26,8 +26,8 @@
       <button class="tab-btn active" data-tab="server">Server</button>
       <button class="tab-btn" data-tab="quick-entry">Quick Entry</button>
       <button class="tab-btn" data-tab="quick-view">Quick View</button>
-      <button class="tab-btn platform-windows-only" data-tab="notifications">Notifications</button>
-      <button class="tab-btn platform-windows-only" data-tab="integrations">Integrations</button>
+      <button class="tab-btn" data-tab="notifications">Notifications</button>
+      <button class="tab-btn" data-tab="integrations">Integrations</button>
     </div>
 
     <!-- Upload confirmation dialog (shown when leaving standalone mode) -->
@@ -207,7 +207,7 @@
     </div>
 
     <!-- Notifications tab -->
-    <div id="tab-notifications" class="tab-content platform-windows-only">
+    <div id="tab-notifications" class="tab-content">
       <div class="form-group checkbox-group">
         <label>
           <input id="notifications-enabled" type="checkbox" />
@@ -269,11 +269,14 @@
         </div>
 
         <button id="test-notification-btn" class="btn-secondary btn-small" type="button">Send Test Notification</button>
+        <p class="platform-macos-note setup-description" style="margin-top: 10px; font-size: 12px; color: #888;">
+          On macOS, the first notification will prompt you to allow notifications from Vikunja Quick Entry in System Settings → Notifications.
+        </p>
       </fieldset>
     </div>
 
     <!-- Integrations tab -->
-    <div id="tab-integrations" class="tab-content platform-windows-only">
+    <div id="tab-integrations" class="tab-content">
       <div class="integration-section">
         <div class="integration-header">Obsidian</div>
 
@@ -360,9 +363,9 @@
           <details class="setup-instructions">
             <summary>Setup instructions</summary>
             <div class="setup-step-header">How it works</div>
-            <p class="setup-description">Vicu automatically reads the URL bar from the active browser window when Quick Entry opens. This works with Chrome, Firefox, Edge, Brave, Opera, and Vivaldi &mdash; no extension required.</p>
-            <div class="setup-step-header">Firefox, Edge, Brave, Opera, Vivaldi</div>
-            <p class="setup-description">No setup needed. Vicu detects URLs automatically via Windows accessibility APIs.</p>
+            <p class="setup-description" id="browser-how-it-works">Vikunja Quick Entry automatically reads the URL from the active browser tab when Quick Entry opens. This works with Chrome, Firefox, Edge, Brave, Opera, and Vivaldi &mdash; no extension required.</p>
+            <div class="setup-step-header" id="browser-auto-detect-header">Automatic detection</div>
+            <p class="setup-description" id="browser-auto-detect-note">No setup needed. URLs are detected automatically.</p>
             <div class="setup-step-header">Chrome <span class="label-hint">(optional extension for instant detection)</span></div>
             <p class="setup-description">Chrome works without the extension, but installing it provides instant (&lt;1ms) detection instead of the ~300ms fallback.</p>
             <ol>

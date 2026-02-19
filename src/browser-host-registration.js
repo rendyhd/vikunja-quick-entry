@@ -4,8 +4,10 @@ const { app } = require('electron');
 const { execSync } = require('child_process');
 const { existsSync, writeFileSync, unlinkSync, mkdirSync } = require('fs');
 const { join, dirname } = require('path');
+const os = require('os');
 
 const HOST_NAME = 'com.vikunja-quick-entry.browser';
+const homedir = os.homedir();
 
 function getBridgePath() {
   if (app.isPackaged) {
@@ -36,7 +38,55 @@ function getFirefoxHostManifestPath() {
   return join(app.getPath('userData'), `${HOST_NAME}.firefox.json`);
 }
 
+// --- macOS manifest paths ---
+function getMacChromeHostDir() {
+  return join(homedir, 'Library', 'Application Support', 'Google', 'Chrome', 'NativeMessagingHosts');
+}
+
+function getMacFirefoxHostDir() {
+  return join(homedir, 'Library', 'Application Support', 'Mozilla', 'NativeMessagingHosts');
+}
+
+function getMacEdgeHostDir() {
+  return join(homedir, 'Library', 'Application Support', 'Microsoft Edge', 'NativeMessagingHosts');
+}
+
+function getMacManifestPath(browserDir) {
+  return join(browserDir, `${HOST_NAME}.json`);
+}
+
+function ensureShellWrapper() {
+  // On macOS, create wrapper in userData (outside app bundle to preserve code signature)
+  const shPath = join(app.getPath('userData'), 'vqe-bridge.sh');
+  const bridgeJs = getBridgePath();
+  const content = `#!/bin/bash\nexec /usr/bin/env node "${bridgeJs}"\n`;
+  writeFileSync(shPath, content, { mode: 0o755 });
+  return shPath;
+}
+
 function registerChromeHost(extensionId) {
+  if (process.platform === 'darwin') {
+    const hostPath = ensureShellWrapper();
+    const manifest = {
+      name: HOST_NAME,
+      description: 'Vikunja Quick Entry Browser Link native messaging bridge',
+      path: hostPath,
+      type: 'stdio',
+      allowed_origins: extensionId ? [`chrome-extension://${extensionId}/`] : [],
+    };
+
+    // Register for Chrome
+    const chromeDir = getMacChromeHostDir();
+    mkdirSync(chromeDir, { recursive: true });
+    writeFileSync(getMacManifestPath(chromeDir), JSON.stringify(manifest, null, 2), 'utf-8');
+
+    // Also register for Edge (same manifest format)
+    const edgeDir = getMacEdgeHostDir();
+    mkdirSync(edgeDir, { recursive: true });
+    writeFileSync(getMacManifestPath(edgeDir), JSON.stringify(manifest, null, 2), 'utf-8');
+    return;
+  }
+
   if (process.platform !== 'win32') return;
   const hostPath = ensureBatWrapper();
   const manifestPath = getChromeHostManifestPath();
@@ -57,6 +107,22 @@ function registerChromeHost(extensionId) {
 }
 
 function registerFirefoxHost() {
+  if (process.platform === 'darwin') {
+    const hostPath = ensureShellWrapper();
+    const manifest = {
+      name: HOST_NAME,
+      description: 'Vikunja Quick Entry Browser Link native messaging bridge',
+      path: hostPath,
+      type: 'stdio',
+      allowed_extensions: ['browser-link@vikunja-quick-entry.app'],
+    };
+
+    const firefoxDir = getMacFirefoxHostDir();
+    mkdirSync(firefoxDir, { recursive: true });
+    writeFileSync(getMacManifestPath(firefoxDir), JSON.stringify(manifest, null, 2), 'utf-8');
+    return;
+  }
+
   if (process.platform !== 'win32') return;
   const hostPath = ensureBatWrapper();
   const manifestPath = getFirefoxHostManifestPath();
@@ -77,6 +143,16 @@ function registerFirefoxHost() {
 }
 
 function unregisterHosts() {
+  if (process.platform === 'darwin') {
+    // Remove manifests
+    try { unlinkSync(getMacManifestPath(getMacChromeHostDir())); } catch { /* ignore */ }
+    try { unlinkSync(getMacManifestPath(getMacFirefoxHostDir())); } catch { /* ignore */ }
+    try { unlinkSync(getMacManifestPath(getMacEdgeHostDir())); } catch { /* ignore */ }
+    // Remove shell wrapper
+    try { unlinkSync(join(app.getPath('userData'), 'vqe-bridge.sh')); } catch { /* ignore */ }
+    return;
+  }
+
   if (process.platform !== 'win32') return;
   const chromePath = getChromeHostManifestPath();
   const firefoxPath = getFirefoxHostManifestPath();
@@ -87,6 +163,13 @@ function unregisterHosts() {
 }
 
 function isRegistered() {
+  if (process.platform === 'darwin') {
+    return {
+      chrome: existsSync(getMacManifestPath(getMacChromeHostDir())),
+      firefox: existsSync(getMacManifestPath(getMacFirefoxHostDir())),
+    };
+  }
+
   if (process.platform !== 'win32') return { chrome: false, firefox: false };
   return {
     chrome: existsSync(getChromeHostManifestPath()),
