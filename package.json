@@ -1,6 +1,6 @@
 {
   "name": "vikunja-quick-entry",
-  "version": "3.0.0-beta.3",
+  "version": "3.0.0-beta.4",
   "description": "A lightweight system tray app with a global hotkey for quick task entry to Vikunja",
   "main": "src/main.js",
   "scripts": {
