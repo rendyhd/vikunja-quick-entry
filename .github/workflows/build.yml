@@ -18,8 +18,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Build and publish
-        run: npm run dist:publish
+      - name: Build
+        run: npx electron-builder --win --publish never
+      - name: Upload to release
+        run: gh release upload "${{ github.ref_name }}" dist/*.exe --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -32,7 +34,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Build and publish
-        run: npx electron-builder --mac --publish always
+      - name: Build
+        run: npx electron-builder --mac --publish never
+      - name: Upload to release
+        run: gh release upload "${{ github.ref_name }}" dist/*.dmg --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

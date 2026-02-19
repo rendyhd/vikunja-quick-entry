@@ -45,9 +45,3 @@ nsis:
   differentialPackage: false
 
 afterPack: scripts/afterPack.js
-
-publish:
-  provider: github
-  owner: rendyhd
-  repo: vikunja-quick-entry
-  releaseType: release

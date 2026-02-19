@@ -7,7 +7,7 @@
     "start": "electron .",
     "dist": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
-    "dist:publish": "electron-builder --win --publish always"
+    "dist:publish": "electron-builder --win --publish never"
   },
   "author": "rendyhd",
   "license": "MIT",
