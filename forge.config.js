@@ -30,7 +30,6 @@ module.exports = {
       name: '@electron-forge/maker-dmg',
       config: {
         name: 'Vikunja-Quick-Entry',
-        title: 'Vikunja Quick Entry',
         icon: './assets/icon.icns',
       },
     },
