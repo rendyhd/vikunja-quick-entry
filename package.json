@@ -18,5 +18,8 @@
     "@electron-forge/maker-wix": "^7.11.1",
     "@electron-forge/plugin-fuses": "^7.6.0",
     "electron": "^40.0.0"
+  },
+  "dependencies": {
+    "koffi": "^2.15.1"
   }
 }

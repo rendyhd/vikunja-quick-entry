@@ -409,6 +409,58 @@ h1 {
   margin-top: 16px;
 }
 
+/* Integration sections */
+.integration-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.integration-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.integration-header {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.integration-fields {
+  padding-left: 0;
+}
+
+.setup-instructions {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #666;
+}
+
+.setup-instructions summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: #4a90d9;
+}
+
+.setup-instructions ol {
+  margin-top: 8px;
+  padding-left: 20px;
+}
+
+.setup-instructions li {
+  margin-bottom: 4px;
+}
+
+.setup-instructions code {
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 11px;
+  padding: 1px 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+}
+
 /* Hidden utility */
 .hidden {
   display: none !important;
@@ -698,5 +750,25 @@ h1 {
 
   .notification-section {
     color: #aaa;
+  }
+
+  .integration-section {
+    border-bottom-color: #444;
+  }
+
+  .integration-header {
+    color: #ddd;
+  }
+
+  .setup-instructions {
+    color: #999;
+  }
+
+  .setup-instructions summary {
+    color: #5a9be6;
+  }
+
+  .setup-instructions code {
+    background: rgba(255, 255, 255, 0.08);
   }
 }

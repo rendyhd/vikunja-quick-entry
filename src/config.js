@@ -84,6 +84,14 @@ function getConfig() {
     },
     secondary_projects: Array.isArray(config.secondary_projects) ? config.secondary_projects : [],
     theme: config.theme || 'system',
+    // Obsidian integration
+    obsidian_mode: config.obsidian_mode || 'off',
+    obsidian_api_key: config.obsidian_api_key || '',
+    obsidian_port: config.obsidian_port || 27124,
+    obsidian_vault_name: config.obsidian_vault_name || '',
+    // Browser integration
+    browser_link_mode: config.browser_link_mode || 'off',
+    browser_extension_id: config.browser_extension_id || '',
     // Notification settings
     notifications_enabled: config.notifications_enabled === true,
     notifications_persistent: config.notifications_persistent === true,

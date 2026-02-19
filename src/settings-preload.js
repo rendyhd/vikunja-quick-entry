@@ -9,4 +9,8 @@ contextBridge.exposeInMainWorld('settingsApi', {
   uploadStandaloneTasks: (url, token, projectId) => ipcRenderer.invoke('upload-standalone-tasks', url, token, projectId),
   previewTheme: (theme) => ipcRenderer.invoke('preview-theme', theme),
   testNotification: () => ipcRenderer.invoke('test-notification'),
+  testObsidianConnection: (apiKey, port) => ipcRenderer.invoke('test-obsidian-connection', apiKey, port),
+  checkBrowserHostRegistration: () => ipcRenderer.invoke('check-browser-host-registration'),
+  registerBrowserHosts: (extensionId) => ipcRenderer.invoke('register-browser-hosts', extensionId),
+  openBrowserExtensionFolder: () => ipcRenderer.invoke('open-browser-extension-folder'),
 });

@@ -18,6 +18,10 @@ const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, upd
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
 const { initNotifications, rescheduleNotifications, stopNotifications, sendTestNotification } = require('./notifications');
+const { getForegroundProcessName, isObsidianForeground, getObsidianContext, testObsidianConnection } = require('./obsidian-client');
+const { getBrowserContext } = require('./browser-client');
+const { BROWSER_PROCESSES, getBrowserUrlFromWindow, prewarmUrlReader, shutdownUrlReader } = require('./window-url-reader');
+const { registerChromeHost, registerFirefoxHost, isRegistered } = require('./browser-host-registration');
 const {
   addPendingAction,
   removePendingAction,
@@ -126,7 +130,7 @@ function createSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     width: 480,
-    height: 580,
+    height: 620,
     frame: true,
     transparent: false,
     alwaysOnTop: false,
@@ -161,8 +165,32 @@ function createSettingsWindow() {
   });
 }
 
-function showWindow() {
+async function showWindow() {
   if (!mainWindow) return;
+
+  // 1. Obsidian detection (before showing window, while previous app still has focus)
+  let obsidianCtx = null;
+  if (config && config.obsidian_mode !== 'off' && config.obsidian_api_key && isObsidianForeground()) {
+    obsidianCtx = await Promise.race([
+      getObsidianContext(config),
+      new Promise((resolve) => setTimeout(() => resolve(null), 350)),
+    ]);
+  }
+
+  // 2. Browser detection (only if Obsidian didn't match)
+  let browserCtx = null;
+  if (!obsidianCtx && config && config.browser_link_mode !== 'off') {
+    browserCtx = getBrowserContext(); // extension path (<1ms)
+    if (!browserCtx) {
+      const fgProcess = getForegroundProcessName();
+      if (BROWSER_PROCESSES.has(fgProcess)) {
+        browserCtx = await Promise.race([
+          getBrowserUrlFromWindow(fgProcess),
+          new Promise((resolve) => setTimeout(() => resolve(null), 1500)),
+        ]);
+      }
+    }
+  }
 
   if (config && config.entry_position) {
     // Use saved position, but ensure it's on-screen
@@ -180,6 +208,14 @@ function showWindow() {
     }
   } else {
     centerEntryWindow();
+  }
+
+  // Send context IPC before showing window
+  if (obsidianCtx) {
+    mainWindow.webContents.send('obsidian-context', { ...obsidianCtx, mode: config.obsidian_mode });
+  }
+  if (!obsidianCtx && browserCtx) {
+    mainWindow.webContents.send('browser-context', { ...browserCtx, mode: config.browser_link_mode });
   }
 
   mainWindow.show();
@@ -841,6 +877,8 @@ ipcMain.handle('get-config', () => {
         secondary_projects: config.secondary_projects || [],
         project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
         standalone_mode: config.standalone_mode === true,
+        obsidian_mode: config.obsidian_mode || 'off',
+        browser_link_mode: config.browser_link_mode || 'off',
       }
     : null;
 });
@@ -872,6 +910,13 @@ ipcMain.handle('get-full-config', () => {
         notifications_due_today_enabled: config.notifications_due_today_enabled,
         notifications_upcoming_enabled: config.notifications_upcoming_enabled,
         notifications_sound: config.notifications_sound,
+        // Integration settings
+        obsidian_mode: config.obsidian_mode || 'off',
+        obsidian_api_key: config.obsidian_api_key || '',
+        obsidian_port: config.obsidian_port || 27124,
+        obsidian_vault_name: config.obsidian_vault_name || '',
+        browser_link_mode: config.browser_link_mode || 'off',
+        browser_extension_id: config.browser_extension_id || '',
       }
     : null;
 });
@@ -927,6 +972,13 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       notifications_due_today_enabled: settings.notifications_due_today_enabled !== false,
       notifications_upcoming_enabled: settings.notifications_upcoming_enabled === true,
       notifications_sound: settings.notifications_sound !== false,
+      // Integration settings
+      obsidian_mode: settings.obsidian_mode || 'off',
+      obsidian_api_key: settings.obsidian_api_key || '',
+      obsidian_port: settings.obsidian_port || 27124,
+      obsidian_vault_name: settings.obsidian_vault_name || '',
+      browser_link_mode: settings.browser_link_mode || 'off',
+      browser_extension_id: settings.browser_extension_id || '',
     };
 
     // Preserve window positions from existing config
@@ -1007,6 +1059,39 @@ ipcMain.handle('open-external', (_event, url) => {
   if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
     shell.openExternal(url);
   }
+});
+
+// --- Deep link handler (obsidian:// and http(s)://) ---
+const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['https:', 'http:', 'obsidian:']);
+
+ipcMain.handle('open-deep-link', (_event, url) => {
+  if (typeof url !== 'string') return;
+  try {
+    const parsed = new URL(url);
+    if (ALLOWED_EXTERNAL_PROTOCOLS.has(parsed.protocol)) {
+      shell.openExternal(url);
+    }
+  } catch { /* invalid URL */ }
+});
+
+// --- Obsidian & Browser integration IPC ---
+ipcMain.handle('test-obsidian-connection', async (_event, apiKey, port) => {
+  return testObsidianConnection(apiKey || '', port || 27124);
+});
+
+ipcMain.handle('check-browser-host-registration', () => {
+  return isRegistered();
+});
+
+ipcMain.handle('register-browser-hosts', (_event, extensionId) => {
+  if (extensionId) registerChromeHost(extensionId);
+  registerFirefoxHost();
+  return isRegistered();
+});
+
+ipcMain.handle('open-browser-extension-folder', () => {
+  const extensionDir = path.join(app.getAppPath(), 'extensions', 'browser');
+  shell.showItemInFolder(extensionDir);
 });
 
 // --- Viewer IPC Handlers ---
@@ -1305,6 +1390,11 @@ app.on('ready', async () => {
   registerShortcuts();
   app.setLoginItemSettings({ openAtLogin: config.launch_on_startup });
 
+  // Prewarm PowerShell URL reader for faster browser detection
+  if (process.platform === 'win32') {
+    prewarmUrlReader();
+  }
+
   // Initialize notification scheduler (works in both server and standalone modes)
   initNotifications(() => config, showViewer);
 
@@ -1332,6 +1422,7 @@ app.on('will-quit', () => {
   stopSyncTimer();
   stopCacheRefresh();
   stopNotifications();
+  shutdownUrlReader();
   if (dragHoverTimer) {
     clearInterval(dragHoverTimer);
     dragHoverTimer = null;

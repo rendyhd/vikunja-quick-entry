@@ -40,6 +40,22 @@ const notifPersistent = document.getElementById('notifications-persistent');
 const notifSound = document.getElementById('notifications-sound');
 const testNotificationBtn = document.getElementById('test-notification-btn');
 
+// --- Integration elements ---
+const obsidianMode = document.getElementById('obsidian-mode');
+const obsidianFields = document.getElementById('obsidian-fields');
+const obsidianApiKey = document.getElementById('obsidian-api-key');
+const toggleObsidianKeyBtn = document.getElementById('toggle-obsidian-key');
+const obsidianVaultName = document.getElementById('obsidian-vault-name');
+const obsidianPort = document.getElementById('obsidian-port');
+const testObsidianBtn = document.getElementById('test-obsidian-btn');
+const obsidianTestStatus = document.getElementById('obsidian-test-status');
+const browserLinkMode = document.getElementById('browser-link-mode');
+const browserFields = document.getElementById('browser-fields');
+const browserExtensionId = document.getElementById('browser-extension-id');
+const registerBrowserBtn = document.getElementById('register-browser-btn');
+const openExtensionFolderBtn = document.getElementById('open-extension-folder-btn');
+const browserRegistrationStatus = document.getElementById('browser-registration-status');
+
 // --- Standalone mode elements ---
 const standaloneMode = document.getElementById('standalone-mode');
 const serverSettings = document.getElementById('server-settings');
@@ -200,6 +216,82 @@ tabBtns.forEach((btn) => {
   });
 });
 
+// --- Integration toggles ---
+obsidianMode.addEventListener('change', () => {
+  obsidianFields.classList.toggle('hidden', obsidianMode.value === 'off');
+});
+
+browserLinkMode.addEventListener('change', () => {
+  browserFields.classList.toggle('hidden', browserLinkMode.value === 'off');
+});
+
+toggleObsidianKeyBtn.addEventListener('click', () => {
+  const isPassword = obsidianApiKey.type === 'password';
+  obsidianApiKey.type = isPassword ? 'text' : 'password';
+  toggleObsidianKeyBtn.textContent = isPassword ? 'Hide' : 'Show';
+});
+
+testObsidianBtn.addEventListener('click', async () => {
+  const key = obsidianApiKey.value.trim();
+  const port = parseInt(obsidianPort.value, 10) || 27124;
+  if (!key) {
+    obsidianTestStatus.textContent = 'Enter an API key first.';
+    obsidianTestStatus.className = 'status-text error';
+    return;
+  }
+  obsidianTestStatus.textContent = 'Testing...';
+  obsidianTestStatus.className = 'status-text';
+  testObsidianBtn.disabled = true;
+
+  const result = await window.settingsApi.testObsidianConnection(key, port);
+  testObsidianBtn.disabled = false;
+
+  if (result.reachable) {
+    const note = result.noteName ? ` (active: ${result.noteName})` : '';
+    obsidianTestStatus.textContent = `Connected${note}`;
+    obsidianTestStatus.className = 'status-text success';
+  } else {
+    obsidianTestStatus.textContent = 'Could not connect. Check API key, port, and that Obsidian is running.';
+    obsidianTestStatus.className = 'status-text error';
+  }
+});
+
+registerBrowserBtn.addEventListener('click', async () => {
+  const extId = browserExtensionId.value.trim();
+  browserRegistrationStatus.textContent = 'Registering...';
+  browserRegistrationStatus.className = 'status-text';
+  registerBrowserBtn.disabled = true;
+
+  const result = await window.settingsApi.registerBrowserHosts(extId);
+  registerBrowserBtn.disabled = false;
+
+  const parts = [];
+  if (result.chrome) parts.push('Chrome');
+  if (result.firefox) parts.push('Firefox');
+  if (parts.length > 0) {
+    browserRegistrationStatus.textContent = `Registered: ${parts.join(', ')}`;
+    browserRegistrationStatus.className = 'status-text success';
+  } else {
+    browserRegistrationStatus.textContent = 'Registration failed (Windows only).';
+    browserRegistrationStatus.className = 'status-text error';
+  }
+});
+
+openExtensionFolderBtn.addEventListener('click', () => {
+  window.settingsApi.openBrowserExtensionFolder();
+});
+
+async function checkBrowserRegistration() {
+  const status = await window.settingsApi.checkBrowserHostRegistration();
+  const parts = [];
+  if (status.chrome) parts.push('Chrome');
+  if (status.firefox) parts.push('Firefox');
+  if (parts.length > 0) {
+    browserRegistrationStatus.textContent = `Registered: ${parts.join(', ')}`;
+    browserRegistrationStatus.className = 'status-text success';
+  }
+}
+
 // --- Load existing config ---
 async function loadExistingConfig() {
   const config = await window.settingsApi.getFullConfig();
@@ -243,6 +335,21 @@ async function loadExistingConfig() {
   notifUpcoming.checked = config.notifications_upcoming_enabled === true;
   notifPersistent.checked = config.notifications_persistent === true;
   notifSound.checked = config.notifications_sound !== false;
+
+  // Integration settings
+  obsidianMode.value = config.obsidian_mode || 'off';
+  obsidianFields.classList.toggle('hidden', obsidianMode.value === 'off');
+  obsidianApiKey.value = config.obsidian_api_key || '';
+  obsidianVaultName.value = config.obsidian_vault_name || '';
+  obsidianPort.value = config.obsidian_port || 27124;
+  browserLinkMode.value = config.browser_link_mode || 'off';
+  browserFields.classList.toggle('hidden', browserLinkMode.value === 'off');
+  browserExtensionId.value = config.browser_extension_id || '';
+
+  // Check browser registration status
+  if (browserLinkMode.value !== 'off') {
+    checkBrowserRegistration();
+  }
 
   // If we have URL and token, auto-load projects
   if (config.vikunja_url && config.api_token) {
@@ -708,6 +815,13 @@ function gatherSettings(overrides = {}) {
     notifications_due_today_enabled: notifDueToday.checked,
     notifications_upcoming_enabled: notifUpcoming.checked,
     notifications_sound: notifSound.checked,
+    // Integration settings
+    obsidian_mode: obsidianMode.value || 'off',
+    obsidian_api_key: obsidianApiKey.value.trim(),
+    obsidian_port: parseInt(obsidianPort.value, 10) || 27124,
+    obsidian_vault_name: obsidianVaultName.value.trim(),
+    browser_link_mode: browserLinkMode.value || 'off',
+    browser_extension_id: browserExtensionId.value.trim(),
     ...overrides,
   };
   return settings;

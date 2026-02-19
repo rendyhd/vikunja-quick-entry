@@ -17,4 +17,10 @@ contextBridge.exposeInMainWorld('api', {
   onDragHover: (callback) => {
     ipcRenderer.on('drag-hover', callback);
   },
+  onObsidianContext: (callback) => {
+    ipcRenderer.on('obsidian-context', (_event, context) => callback(context));
+  },
+  onBrowserContext: (callback) => {
+    ipcRenderer.on('browser-context', (_event, context) => callback(context));
+  },
 });

@@ -7,6 +7,10 @@ module.exports = {
     executableName: 'vikunja-quick-entry',
     asar: true,
     icon: './assets/icon',
+    extraResource: [
+      './resources/get-browser-url.ps1',
+      './resources/native-messaging-host',
+    ],
   },
   makers: [
     {
