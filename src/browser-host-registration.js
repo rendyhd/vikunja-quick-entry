@@ -9,7 +9,7 @@ const HOST_NAME = 'com.vikunja-quick-entry.browser';
 
 function getBridgePath() {
   if (app.isPackaged) {
-    return join(process.resourcesPath, 'native-messaging-host', 'vqe-bridge.js');
+    return join(process.resourcesPath, 'resources', 'native-messaging-host', 'vqe-bridge.js');
   }
   return join(app.getAppPath(), 'resources', 'native-messaging-host', 'vqe-bridge.js');
 }

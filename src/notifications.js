@@ -1,4 +1,4 @@
-const { Notification, nativeImage, powerMonitor } = require('electron');
+const { app, Notification, nativeImage, powerMonitor } = require('electron');
 const path = require('path');
 const { fetchTasks } = require('./api');
 const { getAllStandaloneTasks } = require('./cache');
@@ -22,7 +22,9 @@ function initNotifications(getConfig, showMainWindow) {
 
   // Load icon once
   try {
-    const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+    const iconPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'resources', 'icon.png')
+      : path.join(app.getAppPath(), 'assets', 'icon.png');
     icon = nativeImage.createFromPath(iconPath);
     if (icon.isEmpty()) icon = undefined;
   } catch {

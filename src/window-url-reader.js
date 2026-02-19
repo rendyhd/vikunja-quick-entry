@@ -12,7 +12,7 @@ let prewarmProcess = null;
 
 function getScriptPath() {
   if (app.isPackaged) {
-    return join(process.resourcesPath, 'get-browser-url.ps1');
+    return join(process.resourcesPath, 'resources', 'get-browser-url.ps1');
   }
   return join(app.getAppPath(), 'resources', 'get-browser-url.ps1');
 }

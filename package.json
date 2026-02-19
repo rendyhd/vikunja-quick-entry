@@ -1,21 +1,20 @@
 {
   "name": "vikunja-quick-entry",
-  "version": "3.0.0-beta.1",
+  "version": "3.0.0-beta.2",
   "description": "A lightweight system tray app with a global hotkey for quick task entry to Vikunja",
   "main": "src/main.js",
   "scripts": {
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make"
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:publish": "electron-builder --win --publish always"
   },
   "author": "rendyhd",
   "license": "MIT",
   "devDependencies": {
-    "@electron-forge/cli": "^7.6.0",
-    "@electron-forge/maker-dmg": "^7.6.0",
-    "@electron-forge/maker-wix": "^7.11.1",
-    "@electron-forge/plugin-fuses": "^7.6.0",
-    "electron": "^40.0.0"
+    "@electron/fuses": "^1.8.0",
+    "electron": "^40.0.0",
+    "electron-builder": "^26.0.0"
   },
   "dependencies": {
     "koffi": "^2.15.1"

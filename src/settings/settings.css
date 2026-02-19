@@ -30,6 +30,26 @@ h1 {
   margin-bottom: 20px;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-status {
+  font-size: 11px;
+  color: transparent;
+  transition: color 300ms;
+}
+
+.save-status.saving {
+  color: #888;
+}
+
+.save-status.saved {
+  color: #38a169;
+}
+
 .theme-select {
   padding: 4px 8px;
   font-size: 12px;
@@ -88,8 +108,8 @@ h1 {
   display: block;
 }
 
-/* Shared settings */
-.shared-settings {
+/* Server fields (inside Server tab, hidden in standalone) */
+.server-fields {
   margin-bottom: 4px;
 }
 
@@ -723,6 +743,14 @@ h1 {
 
   .reorder-btn.remove:hover {
     background: #3a2a2a;
+  }
+
+  .save-status.saving {
+    color: #777;
+  }
+
+  .save-status.saved {
+    color: #68d391;
   }
 
   .theme-select {

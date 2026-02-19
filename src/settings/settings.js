@@ -1,15 +1,17 @@
-// --- Quick Entry elements ---
+// --- Server tab elements ---
 const urlInput = document.getElementById('vikunja-url');
 const tokenInput = document.getElementById('api-token');
 const toggleTokenBtn = document.getElementById('toggle-token');
 const projectSelect = document.getElementById('default-project');
 const loadProjectsBtn = document.getElementById('load-projects');
 const projectStatus = document.getElementById('project-status');
+const launchStartup = document.getElementById('launch-startup');
+const autoCheckUpdates = document.getElementById('auto-check-updates');
+
+// --- Quick Entry elements ---
 const hotkeyDisplay = document.getElementById('hotkey-display');
 const recordHotkeyBtn = document.getElementById('record-hotkey');
-const launchStartup = document.getElementById('launch-startup');
 const exclamationToday = document.getElementById('exclamation-today');
-const autoCheckUpdates = document.getElementById('auto-check-updates');
 const secondaryProjectsList = document.getElementById('secondary-projects-list');
 const addSecondarySelect = document.getElementById('add-secondary-project');
 const addSecondaryBtn = document.getElementById('add-secondary-btn');
@@ -20,11 +22,13 @@ const cycleShortcutDisplay = document.getElementById('cycle-shortcut-display');
 // --- Quick View elements ---
 const viewerHotkeyDisplay = document.getElementById('viewer-hotkey-display');
 const recordViewerHotkeyBtn = document.getElementById('record-viewer-hotkey');
-const viewerListSelect = document.getElementById('viewer-list-select');
+const viewerProjectsList = document.getElementById('viewer-projects-list');
 const loadViewerProjectsBtn = document.getElementById('load-viewer-projects');
 const viewerProjectStatus = document.getElementById('viewer-project-status');
+const viewerSortBy = document.getElementById('viewer-sort-by');
+const viewerOrderBy = document.getElementById('viewer-order-by');
+const viewerDueDateFilter = document.getElementById('viewer-due-date-filter');
 const viewerIncludeToday = document.getElementById('viewer-include-today');
-const viewerIncludeTodayGroup = document.getElementById('viewer-include-today-group');
 
 // --- Notification elements ---
 const notificationsEnabled = document.getElementById('notifications-enabled');
@@ -72,28 +76,105 @@ const themeSelect = document.getElementById('theme-select');
 // --- Shared elements ---
 const githubLink = document.getElementById('github-link');
 const settingsError = document.getElementById('settings-error');
-const btnSave = document.getElementById('btn-save');
-const btnCancel = document.getElementById('btn-cancel');
+const saveStatus = document.getElementById('save-status');
 
 let recordingHotkey = false;
 let recordingViewerHotkey = false;
-let loadedProjects = null; // Cache projects for Quick View tab
-let secondaryProjects = []; // [{id, title}, ...]
-let wasStandaloneMode = false; // Track if standalone was enabled when settings loaded
+let loadedProjects = null;
+let secondaryProjects = [];
+let wasStandaloneMode = false;
+let saveTimeout = null;
+let initializing = true; // Suppress auto-save during initial load
+
+// --- Platform detection: hide macOS-only elements ---
+(function hidePlatformElements() {
+  const platform = window.settingsApi.getPlatform();
+  if (platform === 'darwin') {
+    document.querySelectorAll('.platform-windows-only').forEach((el) => {
+      el.style.display = 'none';
+    });
+  }
+})();
+
+// --- Auto-save ---
+function showSaveStatus(text, type) {
+  saveStatus.textContent = text;
+  saveStatus.className = 'save-status' + (type ? ` ${type}` : '');
+  if (type === 'saved') {
+    setTimeout(() => {
+      if (saveStatus.textContent === text) {
+        saveStatus.textContent = '';
+        saveStatus.className = 'save-status';
+      }
+    }, 2000);
+  }
+}
+
+async function doAutoSave() {
+  if (initializing) return;
+  hideError();
+
+  const settings = gatherSettings();
+  settings.partial = true; // Tell main process not to require all fields
+
+  showSaveStatus('Saving...', 'saving');
+
+  const result = await window.settingsApi.saveSettings(settings);
+
+  if (result.success) {
+    showSaveStatus('Saved', 'saved');
+  } else {
+    showSaveStatus('', '');
+    showError(result.error || 'Failed to save settings.');
+  }
+}
+
+function scheduleAutoSave(delay = 500) {
+  if (initializing) return;
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(doAutoSave, delay);
+}
+
+function immediateAutoSave() {
+  if (initializing) return;
+  clearTimeout(saveTimeout);
+  doAutoSave();
+}
+
+// Attach auto-save to all form inputs
+function setupAutoSave() {
+  // Text inputs: debounced save
+  const textInputs = document.querySelectorAll(
+    'input[type="url"], input[type="password"], input[type="text"], input[type="number"], input[type="time"]'
+  );
+  textInputs.forEach((input) => {
+    // Skip readonly inputs (hotkey displays) — they save after recording
+    if (input.readOnly) return;
+    input.addEventListener('input', () => scheduleAutoSave());
+  });
+
+  // Checkboxes and selects: immediate save
+  const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach((cb) => {
+    cb.addEventListener('change', () => immediateAutoSave());
+  });
+
+  const selects = document.querySelectorAll('select');
+  selects.forEach((sel) => {
+    // Theme select has its own handler
+    if (sel.id === 'theme-select') return;
+    sel.addEventListener('change', () => immediateAutoSave());
+  });
+}
 
 // --- Standalone mode UI toggle ---
 function updateStandaloneUI(isStandalone) {
   if (isStandalone) {
     serverSettings.classList.add('hidden');
-    tabBar.classList.add('hidden');
-    // Hide both tabs, show only Quick Entry stripped content
-    document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
-    document.getElementById('tab-quick-entry').classList.add('active');
-    // Hide server-dependent settings
+    // Hide server-dependent settings across all tabs
     document.querySelectorAll('.server-dependent').forEach((el) => el.classList.add('hidden'));
   } else {
     serverSettings.classList.remove('hidden');
-    tabBar.classList.remove('hidden');
     document.querySelectorAll('.server-dependent').forEach((el) => el.classList.remove('hidden'));
   }
   // Hide upload dialog when toggling
@@ -151,7 +232,6 @@ uploadYesBtn.addEventListener('click', async () => {
     uploadStatus.textContent = `${uploadResult.uploaded} task(s) uploaded.`;
     uploadStatus.className = 'status-text success';
     wasStandaloneMode = false;
-    setTimeout(() => window.close(), 1000);
   } else {
     const msg = uploadResult.uploaded > 0
       ? `${uploadResult.uploaded} uploaded, but some failed: ${uploadResult.error}`
@@ -163,31 +243,15 @@ uploadYesBtn.addEventListener('click', async () => {
 
 uploadNoBtn.addEventListener('click', async () => {
   hideError();
-  const settings = gatherSettings({ standalone_mode: false });
-
-  if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
-    showError('Configure server settings before saving.');
-    return;
-  }
-
-  btnSave.disabled = true;
   uploadDialog.hidden = true;
-
-  const saveResult = await window.settingsApi.saveSettings(settings);
-
-  btnSave.disabled = false;
-
-  if (saveResult.success) {
-    wasStandaloneMode = false;
-    window.close();
-  } else {
-    showError(saveResult.error || 'Failed to save settings.');
-  }
+  wasStandaloneMode = false;
+  immediateAutoSave();
 });
 
-// --- Theme live preview ---
+// --- Theme live preview + auto-save ---
 themeSelect.addEventListener('change', () => {
   window.settingsApi.previewTheme(themeSelect.value);
+  immediateAutoSave();
 });
 
 // --- Notification master toggle ---
@@ -295,7 +359,10 @@ async function checkBrowserRegistration() {
 // --- Load existing config ---
 async function loadExistingConfig() {
   const config = await window.settingsApi.getFullConfig();
-  if (!config) return;
+  if (!config) {
+    initializing = false;
+    return;
+  }
 
   // Standalone mode
   standaloneMode.checked = config.standalone_mode === true;
@@ -320,6 +387,9 @@ async function loadExistingConfig() {
   viewerHotkeyDisplay.value = config.viewer_hotkey || 'Alt+Shift+B';
 
   if (config.viewer_filter) {
+    viewerSortBy.value = config.viewer_filter.sort_by || 'due_date';
+    viewerOrderBy.value = config.viewer_filter.order_by || 'asc';
+    viewerDueDateFilter.value = config.viewer_filter.due_date_filter || 'all';
     viewerIncludeToday.checked = config.viewer_filter.include_today_all_projects === true;
   }
 
@@ -362,13 +432,15 @@ async function loadExistingConfig() {
       refreshAddSecondaryDropdown();
     }
 
-    // Populate viewer list dropdown with preselected project
+    // Populate viewer projects list with preselected IDs
     if (loadedProjects) {
       const selectedIds = config.viewer_filter ? config.viewer_filter.project_ids : [];
-      const selectedId = selectedIds.length === 1 ? selectedIds[0] : 0;
-      populateViewerListSelect(loadedProjects, selectedId);
+      populateViewerProjectsList(loadedProjects, selectedIds);
     }
   }
+
+  // Done loading — enable auto-save
+  initializing = false;
 }
 
 // --- Token toggle ---
@@ -458,6 +530,7 @@ function renderSecondaryProjects() {
         [secondaryProjects[index - 1], secondaryProjects[index]] =
           [secondaryProjects[index], secondaryProjects[index - 1]];
         renderSecondaryProjects();
+        immediateAutoSave();
       });
       actions.appendChild(upBtn);
     }
@@ -472,6 +545,7 @@ function renderSecondaryProjects() {
         [secondaryProjects[index], secondaryProjects[index + 1]] =
           [secondaryProjects[index + 1], secondaryProjects[index]];
         renderSecondaryProjects();
+        immediateAutoSave();
       });
       actions.appendChild(downBtn);
     }
@@ -485,6 +559,7 @@ function renderSecondaryProjects() {
       secondaryProjects.splice(index, 1);
       renderSecondaryProjects();
       refreshAddSecondaryDropdown();
+      immediateAutoSave();
     });
     actions.appendChild(removeBtn);
 
@@ -532,6 +607,7 @@ addSecondaryBtn.addEventListener('click', () => {
   secondaryProjects.push({ id: project.id, title: project.title });
   renderSecondaryProjects();
   refreshAddSecondaryDropdown();
+  immediateAutoSave();
 });
 
 projectSelect.addEventListener('change', () => {
@@ -539,6 +615,7 @@ projectSelect.addEventListener('change', () => {
   secondaryProjects = secondaryProjects.filter(p => String(p.id) !== defaultId);
   renderSecondaryProjects();
   refreshAddSecondaryDropdown();
+  immediateAutoSave();
 });
 
 function setProjectStatus(msg, type) {
@@ -546,43 +623,42 @@ function setProjectStatus(msg, type) {
   projectStatus.className = 'status-text' + (type ? ` ${type}` : '');
 }
 
-// --- Viewer list select ---
-function populateViewerListSelect(projects, selectedId) {
-  viewerListSelect.innerHTML = '';
-
-  const allOpt = document.createElement('option');
-  allOpt.value = '0';
-  allOpt.textContent = 'All Projects';
-  viewerListSelect.appendChild(allOpt);
+// --- Viewer project multi-select ---
+function populateViewerProjectsList(projects, selectedIds) {
+  viewerProjectsList.innerHTML = '';
+  const selectedSet = new Set((selectedIds || []).map(String));
 
   for (const project of projects) {
-    const opt = document.createElement('option');
-    opt.value = project.id;
-    opt.textContent = project.title;
-    viewerListSelect.appendChild(opt);
-  }
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = project.id;
+    cb.checked = selectedSet.has(String(project.id));
+    cb.addEventListener('change', () => immediateAutoSave());
 
-  viewerListSelect.disabled = false;
-  viewerListSelect.value = selectedId ? String(selectedId) : '0';
-  updateIncludeTodayVisibility();
-}
+    const span = document.createElement('span');
+    span.textContent = project.title;
 
-function updateIncludeTodayVisibility() {
-  const isSpecificProject = viewerListSelect.value && viewerListSelect.value !== '0';
-  viewerIncludeTodayGroup.hidden = !isSpecificProject;
-  if (!isSpecificProject) {
-    viewerIncludeToday.checked = false;
+    label.appendChild(cb);
+    label.appendChild(span);
+    viewerProjectsList.appendChild(label);
   }
 }
 
-viewerListSelect.addEventListener('change', updateIncludeTodayVisibility);
+function getSelectedViewerProjectIds() {
+  const ids = [];
+  viewerProjectsList.querySelectorAll('input[type="checkbox"]:checked').forEach((cb) => {
+    ids.push(Number(cb.value));
+  });
+  return ids;
+}
 
 loadViewerProjectsBtn.addEventListener('click', async () => {
   const url = urlInput.value.trim();
   const token = tokenInput.value.trim();
 
   if (!url || !token) {
-    viewerProjectStatus.textContent = 'Enter URL and API token first.';
+    viewerProjectStatus.textContent = 'Enter URL and API token in Server tab first.';
     viewerProjectStatus.className = 'status-text error';
     return;
   }
@@ -607,16 +683,10 @@ loadViewerProjectsBtn.addEventListener('click', async () => {
   }
 
   loadedProjects = result.projects;
-  populateViewerListSelect(result.projects, 0);
+  populateViewerProjectsList(result.projects, []);
   viewerProjectStatus.textContent = `${result.projects.length} projects loaded.`;
   viewerProjectStatus.className = 'status-text success';
 });
-
-function getSelectedViewerProjectIds() {
-  const val = viewerListSelect.value;
-  if (!val || val === '0') return [];
-  return [Number(val)];
-}
 
 // --- Hotkey recording (shared utility) ---
 
@@ -739,6 +809,7 @@ hotkeyDisplay.addEventListener('keydown', (e) => {
   hotkeyDisplay.value = accelerator;
   recordingHotkey = false;
   recordHotkeyBtn.textContent = 'Record';
+  immediateAutoSave();
 });
 
 hotkeyDisplay.addEventListener('blur', () => {
@@ -770,6 +841,7 @@ viewerHotkeyDisplay.addEventListener('keydown', (e) => {
   viewerHotkeyDisplay.value = accelerator;
   recordingViewerHotkey = false;
   recordViewerHotkeyBtn.textContent = 'Record';
+  immediateAutoSave();
 });
 
 viewerHotkeyDisplay.addEventListener('blur', () => {
@@ -798,9 +870,9 @@ function gatherSettings(overrides = {}) {
     theme: themeSelect.value || 'system',
     viewer_filter: {
       project_ids: getSelectedViewerProjectIds(),
-      sort_by: 'due_date',
-      order_by: 'asc',
-      due_date_filter: 'all',
+      sort_by: viewerSortBy.value || 'due_date',
+      order_by: viewerOrderBy.value || 'asc',
+      due_date_filter: viewerDueDateFilter.value || 'all',
       include_today_all_projects: viewerIncludeToday.checked,
     },
     secondary_projects: secondaryProjects.map(p => ({ id: p.id, title: p.title })),
@@ -826,60 +898,6 @@ function gatherSettings(overrides = {}) {
   };
   return settings;
 }
-
-// --- Save ---
-btnSave.addEventListener('click', async () => {
-  hideError();
-
-  const isStandalone = standaloneMode.checked;
-
-  const settings = gatherSettings();
-
-  // Validation: only require server fields when not in standalone mode
-  if (!isStandalone) {
-    if (!settings.vikunja_url) {
-      showError('Vikunja URL is required.');
-      urlInput.focus();
-      return;
-    }
-
-    if (!settings.api_token) {
-      showError('API token is required.');
-      tokenInput.focus();
-      return;
-    }
-
-    if (!settings.default_project_id) {
-      showError('Please select a default project. Click "Load Projects" first.');
-      return;
-    }
-  }
-
-  // If upload dialog is showing, hide it — the dialog buttons handle upload/discard independently
-  if (!uploadDialog.hidden) {
-    uploadDialog.hidden = true;
-  }
-
-  btnSave.disabled = true;
-  btnSave.textContent = 'Saving...';
-
-  const result = await window.settingsApi.saveSettings(settings);
-
-  btnSave.disabled = false;
-  btnSave.textContent = 'Save';
-
-  if (result.success) {
-    wasStandaloneMode = isStandalone;
-    window.close();
-  } else {
-    showError(result.error || 'Failed to save settings.');
-  }
-});
-
-// --- Cancel ---
-btnCancel.addEventListener('click', () => {
-  window.close();
-});
 
 // --- GitHub link ---
 githubLink.addEventListener('click', (e) => {
@@ -915,4 +933,6 @@ projectCycleModifier.addEventListener('change', () => {
 });
 
 // --- Init ---
-loadExistingConfig();
+loadExistingConfig().then(() => {
+  setupAutoSave();
+});

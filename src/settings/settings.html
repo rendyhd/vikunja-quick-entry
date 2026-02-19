@@ -11,27 +11,23 @@
   <div class="settings-container">
     <div class="settings-header">
       <h1>Settings</h1>
-      <select id="theme-select" class="theme-select">
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </select>
+      <div class="header-right">
+        <span id="save-status" class="save-status"></span>
+        <select id="theme-select" class="theme-select">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
     </div>
 
     <!-- Tab bar -->
     <div class="tab-bar">
-      <button class="tab-btn active" data-tab="quick-entry">Quick Entry</button>
+      <button class="tab-btn active" data-tab="server">Server</button>
+      <button class="tab-btn" data-tab="quick-entry">Quick Entry</button>
       <button class="tab-btn" data-tab="quick-view">Quick View</button>
-      <button class="tab-btn" data-tab="notifications">Notifications</button>
-      <button class="tab-btn" data-tab="integrations">Integrations</button>
-    </div>
-
-    <!-- Standalone mode toggle -->
-    <div class="form-group checkbox-group standalone-toggle">
-      <label>
-        <input id="standalone-mode" type="checkbox" />
-        <span>Standalone mode <span class="label-hint">(offline only, no server connection)</span></span>
-      </label>
+      <button class="tab-btn platform-windows-only" data-tab="notifications">Notifications</button>
+      <button class="tab-btn platform-windows-only" data-tab="integrations">Integrations</button>
     </div>
 
     <!-- Upload confirmation dialog (shown when leaving standalone mode) -->
@@ -44,35 +40,58 @@
       <div id="upload-status" class="status-text"></div>
     </div>
 
-    <!-- Shared settings (always visible, above tabs) -->
-    <div id="server-settings" class="shared-settings">
-      <div class="form-group">
-        <label for="vikunja-url">Vikunja URL</label>
-        <input id="vikunja-url" type="url" placeholder="https://app.vikunja.cloud" spellcheck="false" />
+    <!-- Server tab -->
+    <div id="tab-server" class="tab-content active">
+      <div class="form-group checkbox-group standalone-toggle">
+        <label>
+          <input id="standalone-mode" type="checkbox" />
+          <span>Standalone mode <span class="label-hint">(offline only, no server connection)</span></span>
+        </label>
       </div>
 
-      <div class="form-group">
-        <label for="api-token">API Token</label>
-        <div class="input-row">
-          <input id="api-token" type="password" placeholder="tk_..." spellcheck="false" />
-          <button id="toggle-token" class="btn-icon" type="button" title="Show/hide token">Show</button>
+      <div id="server-settings" class="server-fields">
+        <div class="form-group">
+          <label for="vikunja-url">Vikunja URL</label>
+          <input id="vikunja-url" type="url" placeholder="https://app.vikunja.cloud" spellcheck="false" />
         </div>
+
+        <div class="form-group">
+          <label for="api-token">API Token</label>
+          <div class="input-row">
+            <input id="api-token" type="password" placeholder="tk_..." spellcheck="false" />
+            <button id="toggle-token" class="btn-icon" type="button" title="Show/hide token">Show</button>
+          </div>
+        </div>
+
+        <div class="form-group server-dependent">
+          <label for="default-project">Default Project</label>
+          <div class="input-row">
+            <select id="default-project" disabled>
+              <option value="">Enter URL and token first</option>
+            </select>
+            <button id="load-projects" class="btn-secondary" type="button">Load Projects</button>
+          </div>
+          <div id="project-status" class="status-text"></div>
+        </div>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input id="launch-startup" type="checkbox" />
+          <span>Launch on startup</span>
+        </label>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input id="auto-check-updates" type="checkbox" checked />
+          <span>Automatically check for updates on startup</span>
+        </label>
       </div>
     </div>
 
     <!-- Quick Entry tab -->
-    <div id="tab-quick-entry" class="tab-content active">
-      <div class="form-group server-dependent">
-        <label for="default-project">Default Project</label>
-        <div class="input-row">
-          <select id="default-project" disabled>
-            <option value="">Enter URL and token first</option>
-          </select>
-          <button id="load-projects" class="btn-secondary" type="button">Load Projects</button>
-        </div>
-        <div id="project-status" class="status-text"></div>
-      </div>
-
+    <div id="tab-quick-entry" class="tab-content">
       <div class="form-group server-dependent">
         <label>Secondary Projects <span class="label-hint">(<span id="cycle-shortcut-hint">Ctrl</span>+Arrow to cycle in Quick Entry)</span></label>
         <div id="secondary-projects-list" class="reorder-list"></div>
@@ -103,22 +122,8 @@
 
       <div class="form-group checkbox-group">
         <label>
-          <input id="launch-startup" type="checkbox" />
-          <span>Launch on startup</span>
-        </label>
-      </div>
-
-      <div class="form-group checkbox-group">
-        <label>
           <input id="exclamation-today" type="checkbox" checked />
           <span>! schedules task for today</span>
-        </label>
-      </div>
-
-      <div class="form-group checkbox-group">
-        <label>
-          <input id="auto-check-updates" type="checkbox" checked />
-          <span>Automatically check for updates on startup</span>
         </label>
       </div>
 
@@ -144,17 +149,45 @@
       </div>
 
       <div class="form-group server-dependent">
-        <label for="viewer-list-select">List</label>
-        <div class="input-row">
-          <select id="viewer-list-select" disabled>
-            <option value="">Load projects first</option>
-          </select>
-          <button id="load-viewer-projects" class="btn-secondary btn-small" type="button">Load Projects</button>
+        <label>Projects to include</label>
+        <div id="viewer-projects-list" class="checkbox-list">
+          <div class="status-text">Load projects from Server tab first</div>
         </div>
+        <button id="load-viewer-projects" class="btn-secondary btn-small" type="button">Load Projects</button>
         <div id="viewer-project-status" class="status-text"></div>
       </div>
 
-      <div id="viewer-include-today-group" class="form-group checkbox-group" hidden>
+      <div class="form-group">
+        <label for="viewer-sort-by">Sort by</label>
+        <div class="input-row">
+          <select id="viewer-sort-by">
+            <option value="due_date">Due date</option>
+            <option value="priority">Priority</option>
+            <option value="created">Date created</option>
+            <option value="updated">Date updated</option>
+            <option value="title">Title</option>
+          </select>
+          <select id="viewer-order-by">
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="viewer-due-date-filter">Due date filter</label>
+        <select id="viewer-due-date-filter">
+          <option value="all">All tasks</option>
+          <option value="overdue">Overdue only</option>
+          <option value="today">Due today or overdue</option>
+          <option value="this_week">Due this week</option>
+          <option value="this_month">Due this month</option>
+          <option value="has_due_date">Has a due date</option>
+          <option value="no_due_date">No due date</option>
+        </select>
+      </div>
+
+      <div class="form-group checkbox-group">
         <label>
           <input id="viewer-include-today" type="checkbox" />
           <span>Include tasks due today from all projects</span>
@@ -173,7 +206,7 @@
     </div>
 
     <!-- Notifications tab -->
-    <div id="tab-notifications" class="tab-content">
+    <div id="tab-notifications" class="tab-content platform-windows-only">
       <div class="form-group checkbox-group">
         <label>
           <input id="notifications-enabled" type="checkbox" />
@@ -239,7 +272,7 @@
     </div>
 
     <!-- Integrations tab -->
-    <div id="tab-integrations" class="tab-content">
+    <div id="tab-integrations" class="tab-content platform-windows-only">
       <div class="integration-section">
         <div class="integration-header">Obsidian</div>
 
@@ -329,11 +362,6 @@
     </div>
 
     <div id="settings-error" class="error-text" hidden></div>
-
-    <div class="button-row">
-      <button id="btn-cancel" class="btn-secondary" type="button">Cancel</button>
-      <button id="btn-save" class="btn-primary" type="button">Save</button>
-    </div>
 
     <div class="footer-link">
       <a id="github-link" href="#">GitHub</a>

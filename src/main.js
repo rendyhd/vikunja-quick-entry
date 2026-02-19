@@ -130,12 +130,14 @@ function createSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     width: 480,
-    height: 620,
+    height: 640,
     frame: true,
     transparent: false,
     alwaysOnTop: false,
     skipTaskbar: false,
-    resizable: false,
+    resizable: true,
+    minWidth: 420,
+    minHeight: 500,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'settings-preload.js'),
@@ -377,7 +379,9 @@ function toggleViewer() {
 }
 
 function createTrayIcon() {
-  const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'resources', 'icon.png')
+    : path.join(app.getAppPath(), 'assets', 'icon.png');
   try {
     const icon = nativeImage.createFromPath(iconPath);
     if (!icon.isEmpty()) {
@@ -886,6 +890,7 @@ ipcMain.handle('get-config', () => {
 ipcMain.handle('get-full-config', () => {
   return config
     ? {
+        platform: process.platform,
         vikunja_url: config.vikunja_url,
         api_token: config.api_token,
         default_project_id: config.default_project_id,
@@ -934,11 +939,10 @@ ipcMain.handle('save-settings', async (_event, settings) => {
   try {
     const isStandalone = settings.standalone_mode === true;
 
-    // Validate required fields (relaxed in standalone mode)
-    if (!isStandalone) {
-      if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
-        return { success: false, error: 'URL, API token, and project are required.' };
-      }
+    // Validate required fields (relaxed in standalone mode and partial saves)
+    const hasServerFields = settings.vikunja_url && settings.api_token && settings.default_project_id;
+    if (!isStandalone && !settings.partial && !hasServerFields) {
+      return { success: false, error: 'URL, API token, and project are required.' };
     }
 
     const newConfig = {
@@ -1038,7 +1042,7 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       // No sync in standalone mode
       stopSyncTimer();
       stopCacheRefresh();
-    } else {
+    } else if (hasServerFields) {
       // Ensure sync timer is running (may not be if this is first-time setup)
       startSyncTimer();
       stopCacheRefresh();       // restart with fresh config
@@ -1090,8 +1094,13 @@ ipcMain.handle('register-browser-hosts', (_event, extensionId) => {
 });
 
 ipcMain.handle('open-browser-extension-folder', () => {
-  const extensionDir = path.join(app.getAppPath(), 'extensions', 'browser');
-  shell.showItemInFolder(extensionDir);
+  const extensionDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'extensions', 'browser')
+    : path.join(app.getAppPath(), 'extensions', 'browser');
+  const { existsSync } = require('fs');
+  if (existsSync(extensionDir)) {
+    shell.showItemInFolder(extensionDir);
+  }
 });
 
 // --- Viewer IPC Handlers ---

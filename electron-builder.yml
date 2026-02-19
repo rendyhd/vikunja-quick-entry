@@ -1,0 +1,53 @@
+appId: com.rendyhd.vikunja-quick-entry
+productName: Vikunja Quick Entry
+copyright: Copyright (c) 2024-2026 rendyhd
+
+directories:
+  output: dist
+
+files:
+  - src/**/*
+  - package.json
+
+extraResources:
+  - from: resources/
+    to: resources/
+    filter:
+      - "**/*"
+  - from: extensions/
+    to: extensions/
+    filter:
+      - "**/*"
+  - from: assets/icon.png
+    to: resources/icon.png
+
+win:
+  icon: assets/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+mac:
+  icon: assets/icon.icns
+  target:
+    - target: dmg
+      arch:
+        - arm64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  installerHeaderIcon: assets/icon.ico
+  deleteAppDataOnUninstall: false
+  differentialPackage: false
+
+afterPack: scripts/afterPack.js
+
+publish:
+  provider: github
+  owner: rendyhd
+  repo: vikunja-quick-entry
+  releaseType: release
