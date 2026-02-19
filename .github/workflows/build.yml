@@ -20,11 +20,6 @@ jobs:
           - os: macos-latest
             artifact-name: macos
             artifact-path: out/make/*.dmg
-          - os: ubuntu-latest
-            artifact-name: linux
-            artifact-path: |
-              out/make/deb/x64/*.deb
-              out/make/rpm/x64/*.rpm
 
     runs-on: ${{ matrix.os }}
 
@@ -40,10 +35,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Install RPM tools (Linux only)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y rpm
 
       - name: Extract version from tag
         shell: bash
@@ -69,14 +60,6 @@ jobs:
           for f in out/make/*.dmg; do
             mv "$f" "out/make/Vikunja-Quick-Entry-${VERSION}-arm64.dmg"
           done
-
-      - name: Rename Linux artifacts
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          mv out/make/deb/x64/*.deb "out/make/deb/x64/Vikunja-Quick-Entry-${VERSION}-amd64.deb"
-          mv out/make/rpm/x64/*.rpm "out/make/rpm/x64/Vikunja-Quick-Entry-${VERSION}-x86_64.rpm"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1

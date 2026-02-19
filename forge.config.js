@@ -33,28 +33,6 @@ module.exports = {
         icon: './assets/icon.icns',
       },
     },
-    {
-      name: '@electron-forge/maker-deb',
-      config: {
-        options: {
-          name: 'vikunja-quick-entry',
-          productName: 'Vikunja Quick Entry',
-          categories: ['Utility'],
-          icon: './assets/icon.png',
-        },
-      },
-    },
-    {
-      name: '@electron-forge/maker-rpm',
-      config: {
-        options: {
-          name: 'vikunja-quick-entry',
-          productName: 'Vikunja Quick Entry',
-          categories: ['Utility'],
-          icon: './assets/icon.png',
-        },
-      },
-    },
   ],
   plugins: [
     new FusesPlugin({
