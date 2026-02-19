@@ -43,6 +43,15 @@ const {
   clearStandaloneTasks,
 } = require('./cache');
 
+// Silently ignore EPIPE errors on stdout/stderr — happens when the
+// launching terminal closes but the tray app keeps running.
+for (const stream of [process.stdout, process.stderr]) {
+  stream?.on?.('error', (err) => {
+    if (err.code === 'EPIPE') return;
+    throw err;
+  });
+}
+
 // Ensure single instance
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -212,7 +221,12 @@ async function showWindow() {
     centerEntryWindow();
   }
 
-  // Send context IPC before showing window
+  mainWindow.show();
+  mainWindow.focus();
+  mainWindow.webContents.send('window-shown');
+
+  // Send context IPC after window-shown so resetInput() in the renderer
+  // doesn't immediately clear the context that was just set
   if (obsidianCtx) {
     mainWindow.webContents.send('obsidian-context', { ...obsidianCtx, mode: config.obsidian_mode });
   }
@@ -220,9 +234,6 @@ async function showWindow() {
     mainWindow.webContents.send('browser-context', { ...browserCtx, mode: config.browser_link_mode });
   }
 
-  mainWindow.show();
-  mainWindow.focus();
-  mainWindow.webContents.send('window-shown');
   startDragHoverPolling();
 
   // Opportunistically try to sync pending queue when user activates window
