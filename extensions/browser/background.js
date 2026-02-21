@@ -8,6 +8,24 @@ const HOST_NAME = 'com.vikunja-quick-entry.browser';
 let port = null;
 let reconnectTimeout = null;
 let reconnectDelay = 5000;
+let heartbeatTimer = null;
+
+// Heartbeat: re-send current tab every 2s so the context file stays fresh.
+// The Electron reader (browser-client.js) rejects context older than 3s,
+// so without this, detection fails when the user sits on one tab.
+const HEARTBEAT_INTERVAL = 2000;
+
+function startHeartbeat() {
+  stopHeartbeat();
+  heartbeatTimer = setInterval(() => sendCurrentTab(), HEARTBEAT_INTERVAL);
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
 
 function connect() {
   try {
@@ -20,14 +38,17 @@ function connect() {
         console.debug('Native host disconnected:', error.message || error);
       }
       port = null;
+      stopHeartbeat();
       scheduleReconnect();
     });
 
-    // Send current tab immediately on connect
+    // Send current tab immediately on connect, then keep it fresh
     sendCurrentTab();
+    startHeartbeat();
   } catch (err) {
     console.debug('Native host connect failed:', err);
     port = null;
+    stopHeartbeat();
     scheduleReconnect();
   }
 }

@@ -124,3 +124,37 @@ All renderer windows enforce CSP (`default-src 'self'`). Electron Fuses disable 
 - Native messaging host manifests are written to `~/Library/Application Support/<browser>/NativeMessagingHosts/com.vikunja-quick-entry.browser.json` for Chrome, Edge, and Firefox.
 - The shell wrapper for native messaging is at `~/Library/Application Support/vikunja-quick-entry/vqe-bridge.sh` — placed in `userData` (not inside the `.app` bundle) to avoid invalidating the code signature.
 - Notifications work via Electron's `Notification` API. The first notification triggers a macOS permission prompt (System Settings > Notifications).
+
+### Firefox Extension (.xpi) Build Process
+
+The Firefox extension requires Mozilla signing. **Do NOT rebuild the `.xpi` file directly** — it will break the signature.
+
+**Workflow:**
+1. Extension source lives in `extensions/browser/` (shared with Chrome "Load unpacked")
+2. Build an unsigned `.zip` from the source files for AMO upload
+3. Upload the `.zip` to [addons.mozilla.org](https://addons.mozilla.org) to get a signed `.xpi` back
+4. Place the signed `.xpi` at `extensions/browser/vikunja-quick-entry-firefox-extension.xpi`
+
+**Building the `.zip`** — use `System.IO.Compression` to ensure forward slashes in entry names (PowerShell's `Compress-Archive` uses backslashes, which AMO rejects):
+```powershell
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::Open("vikunja-quick-entry-firefox-extension.zip", 'Create')
+$extDir = [System.IO.Path]::GetFullPath("extensions\browser")
+$files = @(
+    @("manifest.json", "manifest.json"),
+    @("background.js", "background.js"),
+    @("icons\icon16.png", "icons/icon16.png"),
+    @("icons\icon48.png", "icons/icon48.png"),
+    @("icons\icon128.png", "icons/icon128.png")
+)
+foreach ($f in $files) {
+    $srcPath = Join-Path $extDir $f[0]
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $srcPath, $f[1]) | Out-Null
+}
+$zip.Dispose()
+```
+
+**Key constraints:**
+- Zip entry paths MUST use forward slashes (`icons/icon16.png`, not `icons\icon16.png`) or AMO rejects with "Invalid file name in archive"
+- The `.xpi` in the repo must always be the Mozilla-signed version
+- The extension ID is `browser-link@vikunja-quick-entry.app` (set in `manifest.json` under `browser_specific_settings.gecko.id`)
