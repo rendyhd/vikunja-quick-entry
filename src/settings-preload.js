@@ -13,5 +13,6 @@ contextBridge.exposeInMainWorld('settingsApi', {
   checkBrowserHostRegistration: () => ipcRenderer.invoke('check-browser-host-registration'),
   registerBrowserHosts: (extensionId) => ipcRenderer.invoke('register-browser-hosts', extensionId),
   openBrowserExtensionFolder: () => ipcRenderer.invoke('open-browser-extension-folder'),
+  saveFirefoxExtension: () => ipcRenderer.invoke('save-firefox-extension'),
   getPlatform: () => process.platform,
 });

@@ -58,7 +58,10 @@ const browserFields = document.getElementById('browser-fields');
 const browserExtensionId = document.getElementById('browser-extension-id');
 const registerBrowserBtn = document.getElementById('register-browser-btn');
 const openExtensionFolderBtn = document.getElementById('open-extension-folder-btn');
-const browserRegistrationStatus = document.getElementById('browser-registration-status');
+const chromeBridgeDot = document.getElementById('chrome-bridge-dot');
+const firefoxBridgeDot = document.getElementById('firefox-bridge-dot');
+const downloadFirefoxXpiBtn = document.getElementById('download-firefox-xpi-btn');
+const firefoxDownloadStatus = document.getElementById('firefox-download-status');
 
 // --- Standalone mode elements ---
 const standaloneMode = document.getElementById('standalone-mode');
@@ -113,6 +116,12 @@ if (_isMac) {
   const autoDetect = document.getElementById('browser-auto-detect-note');
   if (autoDetect) {
     autoDetect.textContent = 'No setup needed for Chrome, Safari, Edge, Brave, Vivaldi, and Arc. On first use, macOS will ask you to allow control of the browser. Firefox URL detection is unreliable and may not work.';
+  }
+
+  // Firefox detection note: emphasize unreliable fallback on macOS
+  const firefoxNote = document.getElementById('firefox-detect-note');
+  if (firefoxNote) {
+    firefoxNote.textContent = 'Firefox fallback detection via AppleScript is unreliable on macOS. Installing the extension is strongly recommended for Firefox support.';
   }
 
   // Obsidian "Ask" option: Ctrl+L → ⌘L
@@ -358,38 +367,44 @@ testObsidianBtn.addEventListener('click', async () => {
 
 registerBrowserBtn.addEventListener('click', async () => {
   const extId = browserExtensionId.value.trim();
-  browserRegistrationStatus.textContent = 'Registering...';
-  browserRegistrationStatus.className = 'status-text';
   registerBrowserBtn.disabled = true;
+  registerBrowserBtn.textContent = 'Registering...';
 
   const result = await window.settingsApi.registerBrowserHosts(extId);
   registerBrowserBtn.disabled = false;
+  registerBrowserBtn.textContent = 'Register Bridge';
 
-  const parts = [];
-  if (result.chrome) parts.push('Chrome');
-  if (result.firefox) parts.push('Firefox');
-  if (parts.length > 0) {
-    browserRegistrationStatus.textContent = `Registered: ${parts.join(', ')}`;
-    browserRegistrationStatus.className = 'status-text success';
-  } else {
-    browserRegistrationStatus.textContent = 'Registration failed. Check console for details.';
-    browserRegistrationStatus.className = 'status-text error';
-  }
+  updateBridgeDots(result);
 });
 
 openExtensionFolderBtn.addEventListener('click', () => {
   window.settingsApi.openBrowserExtensionFolder();
 });
 
+downloadFirefoxXpiBtn.addEventListener('click', async () => {
+  downloadFirefoxXpiBtn.disabled = true;
+  firefoxDownloadStatus.textContent = '';
+
+  const result = await window.settingsApi.saveFirefoxExtension();
+  downloadFirefoxXpiBtn.disabled = false;
+
+  if (result.success) {
+    firefoxDownloadStatus.textContent = 'Saved!';
+    firefoxDownloadStatus.className = 'status-text success';
+  } else if (!result.canceled) {
+    firefoxDownloadStatus.textContent = result.error || 'Failed to save.';
+    firefoxDownloadStatus.className = 'status-text error';
+  }
+});
+
+function updateBridgeDots(status) {
+  chromeBridgeDot.classList.toggle('connected', !!status.chrome);
+  firefoxBridgeDot.classList.toggle('connected', !!status.firefox);
+}
+
 async function checkBrowserRegistration() {
   const status = await window.settingsApi.checkBrowserHostRegistration();
-  const parts = [];
-  if (status.chrome) parts.push('Chrome');
-  if (status.firefox) parts.push('Firefox');
-  if (parts.length > 0) {
-    browserRegistrationStatus.textContent = `Registered: ${parts.join(', ')}`;
-    browserRegistrationStatus.className = 'status-text success';
-  }
+  updateBridgeDots(status);
 }
 
 // --- Load existing config ---

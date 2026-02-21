@@ -1114,6 +1114,34 @@ ipcMain.handle('open-browser-extension-folder', () => {
   }
 });
 
+ipcMain.handle('save-firefox-extension', async () => {
+  const { existsSync, copyFileSync } = require('fs');
+  const xpiName = 'vikunja-quick-entry-firefox-extension.xpi';
+  const xpiPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'extensions', 'browser', xpiName)
+    : path.join(app.getAppPath(), 'extensions', 'browser', xpiName);
+
+  if (!existsSync(xpiPath)) {
+    return { success: false, error: 'Extension file not found.' };
+  }
+
+  const result = await dialog.showSaveDialog(settingsWindow || null, {
+    defaultPath: xpiName,
+    filters: [{ name: 'Firefox Extension', extensions: ['xpi'] }],
+  });
+
+  if (result.canceled) {
+    return { success: false, canceled: true };
+  }
+
+  try {
+    copyFileSync(xpiPath, result.filePath);
+    return { success: true, path: result.filePath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 // --- Viewer IPC Handlers ---
 ipcMain.handle('fetch-viewer-tasks', async () => {
   if (!config) {

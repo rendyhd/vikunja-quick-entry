@@ -357,7 +357,10 @@
               <button id="register-browser-btn" class="btn-secondary btn-small" type="button">Register Bridge</button>
               <button id="open-extension-folder-btn" class="btn-secondary btn-small" type="button">Open Extension Folder</button>
             </div>
-            <span id="browser-registration-status" class="status-text"></span>
+            <div id="browser-bridge-status" class="bridge-status">
+              <span class="bridge-indicator"><span class="status-dot" id="chrome-bridge-dot"></span> Chrome</span>
+              <span class="bridge-indicator"><span class="status-dot" id="firefox-bridge-dot"></span> Firefox</span>
+            </div>
           </div>
 
           <details class="setup-instructions">
@@ -374,6 +377,19 @@
               <li>Click "Load unpacked" &rarr; select the <code>extensions/browser</code> folder</li>
               <li>Copy the Extension ID shown on the card and paste it in the field above</li>
               <li>Then click <strong>Re-register Bridge</strong> above</li>
+            </ol>
+            <div class="setup-step-header">Firefox <span class="label-hint">(extension for instant detection)</span></div>
+            <p class="setup-description" id="firefox-detect-note">Firefox fallback detection is unreliable on macOS. Installing the extension provides reliable, instant (&lt;1ms) detection on both platforms.</p>
+            <div class="form-group" style="margin-top: 8px;">
+              <button id="download-firefox-xpi-btn" class="btn-secondary btn-small" type="button">Download Firefox Extension (.xpi)</button>
+              <span id="firefox-download-status" class="status-text"></span>
+            </div>
+            <ol>
+              <li>Click the button above to save the <code>.xpi</code> file</li>
+              <li>Open Firefox and go to <code>about:addons</code></li>
+              <li>Click the gear icon &#9881; &rarr; "Install Add-on From File&hellip;"</li>
+              <li>Select the downloaded <code>.xpi</code> file and click "Add"</li>
+              <li>Then click <strong>Register Bridge</strong> above</li>
             </ol>
             <p class="setup-note">Open Quick Entry while a browser tab is active to see the link hint.</p>
           </details>

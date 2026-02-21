@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Vikunja Quick Entry Browser Link",
   "version": "1.0.0",
-  "description": "Links browser tabs to Vikunja Quick Entry tasks",
+  "description": "Sends the active browser tab URL to the Vikunja Quick Entry companion app for instant task linking.",
   "permissions": ["tabs", "nativeMessaging"],
   "background": {
     "service_worker": "background.js",
@@ -10,7 +10,11 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "browser-link@vikunja-quick-entry.app"
+      "id": "browser-link@vikunja-quick-entry.app",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   },
   "icons": {
