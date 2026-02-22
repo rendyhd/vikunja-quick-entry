@@ -355,12 +355,14 @@
           <div class="form-group">
             <div class="input-row">
               <button id="register-browser-btn" class="btn-secondary btn-small" type="button">Register Bridge</button>
+              <button id="test-browser-bridge-btn" class="btn-secondary btn-small" type="button">Test Bridge</button>
               <button id="open-extension-folder-btn" class="btn-secondary btn-small" type="button">Open Extension Folder</button>
             </div>
             <div id="browser-bridge-status" class="bridge-status">
               <span class="bridge-indicator"><span class="status-dot" id="chrome-bridge-dot"></span> Chrome</span>
               <span class="bridge-indicator"><span class="status-dot" id="firefox-bridge-dot"></span> Firefox</span>
             </div>
+            <pre id="bridge-test-output" class="bridge-test-output" hidden></pre>
           </div>
 
           <details class="setup-instructions">

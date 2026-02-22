@@ -62,6 +62,8 @@ const chromeBridgeDot = document.getElementById('chrome-bridge-dot');
 const firefoxBridgeDot = document.getElementById('firefox-bridge-dot');
 const downloadFirefoxXpiBtn = document.getElementById('download-firefox-xpi-btn');
 const firefoxDownloadStatus = document.getElementById('firefox-download-status');
+const testBrowserBridgeBtn = document.getElementById('test-browser-bridge-btn');
+const bridgeTestOutput = document.getElementById('bridge-test-output');
 
 // --- Standalone mode elements ---
 const standaloneMode = document.getElementById('standalone-mode');
@@ -395,6 +397,78 @@ downloadFirefoxXpiBtn.addEventListener('click', async () => {
     firefoxDownloadStatus.textContent = result.error || 'Failed to save.';
     firefoxDownloadStatus.className = 'status-text error';
   }
+});
+
+testBrowserBridgeBtn.addEventListener('click', async () => {
+  testBrowserBridgeBtn.disabled = true;
+  testBrowserBridgeBtn.textContent = 'Testing...';
+  bridgeTestOutput.hidden = false;
+  bridgeTestOutput.textContent = 'Running diagnostics...';
+
+  const result = await window.settingsApi.testBrowserBridge();
+  testBrowserBridgeBtn.disabled = false;
+  testBrowserBridgeBtn.textContent = 'Test Bridge';
+
+  const lines = [];
+  lines.push('=== Bridge Diagnostics ===');
+  lines.push('');
+
+  // Node
+  lines.push(`Node: ${result.nodeAvailable ? result.nodeVersion : 'NOT FOUND'}`);
+  lines.push('');
+
+  // Bridge script
+  lines.push(`Bridge JS: ${result.bridgeExists ? 'OK' : 'MISSING'}`);
+  lines.push(`  ${result.bridgePath}`);
+  lines.push('');
+
+  // Wrapper
+  lines.push(`Wrapper: ${result.wrapperExists ? 'OK' : 'MISSING'}${result.wrapperExecutable === false ? ' (NOT EXECUTABLE)' : ''}`);
+  lines.push(`  ${result.wrapperPath}`);
+  lines.push('');
+
+  // Firefox manifest
+  if (result.firefoxManifestPath) {
+    lines.push(`Firefox manifest: ${result.firefoxManifestExists ? 'OK' : 'MISSING'}`);
+    lines.push(`  ${result.firefoxManifestPath}`);
+    if (result.firefoxManifestContent) {
+      lines.push(`  path: ${result.firefoxManifestContent.path}`);
+      lines.push(`  extensions: ${JSON.stringify(result.firefoxManifestContent.allowed_extensions)}`);
+    }
+    if (result.firefoxManifestError) {
+      lines.push(`  ERROR: ${result.firefoxManifestError}`);
+    }
+    lines.push('');
+  }
+
+  // Chrome manifest
+  if (result.chromeManifestPath) {
+    lines.push(`Chrome manifest: ${result.chromeManifestExists ? 'OK' : 'MISSING'}`);
+    lines.push(`  ${result.chromeManifestPath}`);
+    lines.push('');
+  }
+
+  // Context file
+  lines.push(`Context file: ${result.contextExists ? 'EXISTS' : 'NOT FOUND'}`);
+  lines.push(`  ${result.contextPath}`);
+  if (result.contextData) {
+    lines.push(`  url: ${result.contextData.url || '(none)'}`);
+    lines.push(`  title: ${result.contextData.title || '(none)'}`);
+    lines.push(`  age: ${result.contextAge || '(no timestamp)'}`);
+  }
+  if (result.contextError) {
+    lines.push(`  ERROR: ${result.contextError}`);
+  }
+  lines.push('');
+
+  // Live context
+  lines.push(`Live getBrowserContext(): ${result.liveContext ? 'OK' : 'null'}`);
+  if (result.liveContext) {
+    lines.push(`  url: ${result.liveContext.url}`);
+    lines.push(`  title: ${result.liveContext.title}`);
+  }
+
+  bridgeTestOutput.textContent = lines.join('\n');
 });
 
 function updateBridgeDots(status) {

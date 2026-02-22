@@ -6,7 +6,7 @@ const { existsSync, writeFileSync, unlinkSync, mkdirSync } = require('fs');
 const { join, dirname } = require('path');
 const os = require('os');
 
-const HOST_NAME = 'com.vikunja-quick-entry.browser';
+const HOST_NAME = 'com.vikunja_quick_entry.browser';
 const homedir = os.homedir();
 
 function getBridgePath() {
@@ -57,9 +57,17 @@ function getMacManifestPath(browserDir) {
 
 function ensureShellWrapper() {
   // On macOS, create wrapper in userData (outside app bundle to preserve code signature)
+  // Resolve full node path at registration time — macOS GUI apps (like Firefox) have a
+  // minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin) that won't find node installed via
+  // Homebrew, nvm, fnm, etc.
   const shPath = join(app.getPath('userData'), 'vqe-bridge.sh');
   const bridgeJs = getBridgePath();
-  const content = `#!/bin/bash\nexec /usr/bin/env node "${bridgeJs}"\n`;
+  let nodePath = '/usr/bin/env node';
+  try {
+    const resolved = execSync('which node', { timeout: 3000 }).toString().trim();
+    if (resolved) nodePath = resolved;
+  } catch { /* fallback to env node */ }
+  const content = `#!/bin/bash\nexec "${nodePath}" "${bridgeJs}"\n`;
   writeFileSync(shPath, content, { mode: 0o755 });
   return shPath;
 }

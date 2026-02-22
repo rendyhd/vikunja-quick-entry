@@ -530,6 +530,23 @@ h1 {
   background: #38a169;
 }
 
+/* Bridge test output */
+.bridge-test-output {
+  margin-top: 8px;
+  padding: 10px 12px;
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  background: #f0f4f8;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
 /* Hidden utility */
 .hidden {
   display: none !important;
@@ -867,5 +884,11 @@ h1 {
 
   .status-dot.connected {
     background: #68d391;
+  }
+
+  .bridge-test-output {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #ccc;
   }
 }

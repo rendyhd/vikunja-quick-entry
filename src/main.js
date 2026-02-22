@@ -1114,6 +1114,93 @@ ipcMain.handle('open-browser-extension-folder', () => {
   }
 });
 
+ipcMain.handle('test-browser-bridge', () => {
+  const { existsSync, readFileSync, statSync } = require('fs');
+  const { execSync } = require('child_process');
+  const { getBridgePath, isRegistered: getBridgeRegistration } = require('./browser-host-registration');
+  const { getBrowserContext } = require('./browser-client');
+  const os = require('os');
+
+  const result = {};
+  const HOST_NAME = 'com.vikunja_quick_entry.browser';
+
+  // 1. Check native messaging host manifests
+  if (process.platform === 'darwin') {
+    const firefoxManifestPath = path.join(
+      os.homedir(),
+      'Library', 'Application Support', 'Mozilla', 'NativeMessagingHosts',
+      `${HOST_NAME}.json`
+    );
+    result.firefoxManifestPath = firefoxManifestPath;
+    result.firefoxManifestExists = existsSync(firefoxManifestPath);
+    if (result.firefoxManifestExists) {
+      try {
+        result.firefoxManifestContent = JSON.parse(readFileSync(firefoxManifestPath, 'utf-8'));
+      } catch (err) {
+        result.firefoxManifestError = err.message;
+      }
+    }
+
+    const chromeManifestPath = path.join(
+      os.homedir(),
+      'Library', 'Application Support', 'Google', 'Chrome', 'NativeMessagingHosts',
+      `${HOST_NAME}.json`
+    );
+    result.chromeManifestPath = chromeManifestPath;
+    result.chromeManifestExists = existsSync(chromeManifestPath);
+  }
+
+  // 2. Check shell wrapper / bat wrapper
+  const wrapperPath = process.platform === 'darwin'
+    ? path.join(app.getPath('userData'), 'vqe-bridge.sh')
+    : path.join(path.dirname(getBridgePath()), 'vqe-bridge.bat');
+  result.wrapperPath = wrapperPath;
+  result.wrapperExists = existsSync(wrapperPath);
+  if (result.wrapperExists && process.platform === 'darwin') {
+    try {
+      const stats = statSync(wrapperPath);
+      result.wrapperExecutable = !!(stats.mode & 0o111);
+    } catch { /* ignore */ }
+  }
+
+  // 3. Check bridge JS exists
+  const bridgePath = getBridgePath();
+  result.bridgePath = bridgePath;
+  result.bridgeExists = existsSync(bridgePath);
+
+  // 4. Check node availability
+  try {
+    const nodeVersion = execSync('node --version', { timeout: 3000 }).toString().trim();
+    result.nodeAvailable = true;
+    result.nodeVersion = nodeVersion;
+  } catch {
+    result.nodeAvailable = false;
+  }
+
+  // 5. Check browser-context.json status
+  const contextPath = path.join(app.getPath('userData'), 'browser-context.json');
+  result.contextPath = contextPath;
+  result.contextExists = existsSync(contextPath);
+  if (result.contextExists) {
+    try {
+      const raw = readFileSync(contextPath, 'utf-8');
+      const data = JSON.parse(raw);
+      result.contextData = data;
+      if (typeof data.timestamp === 'number') {
+        result.contextAge = `${Date.now() - data.timestamp}ms`;
+      }
+    } catch (err) {
+      result.contextError = err.message;
+    }
+  }
+
+  // 6. Live test: try reading browser context
+  const ctx = getBrowserContext();
+  result.liveContext = ctx;
+
+  return result;
+});
+
 ipcMain.handle('save-firefox-extension', async () => {
   const { existsSync, copyFileSync } = require('fs');
   const xpiName = 'vikunja-quick-entry-firefox-extension.xpi';

@@ -3,7 +3,7 @@
 // Cross-browser compatibility: Firefox uses browser.*, Chrome uses chrome.*
 const api = typeof browser !== 'undefined' ? browser : chrome;
 
-const HOST_NAME = 'com.vikunja-quick-entry.browser';
+const HOST_NAME = 'com.vikunja_quick_entry.browser';
 
 let port = null;
 let reconnectTimeout = null;
@@ -65,7 +65,7 @@ function scheduleReconnect() {
 
 function isInternalUrl(url) {
   if (!url) return true;
-  return /^(chrome|chrome-extension|about|edge|moz-extension|brave|devtools|view-source):\/\//i.test(url);
+  return /^(chrome|chrome-extension|about|edge|moz-extension|brave|devtools|view-source):/i.test(url);
 }
 
 function sendMessage(msg) {
