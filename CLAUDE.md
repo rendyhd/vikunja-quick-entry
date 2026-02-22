@@ -121,8 +121,9 @@ All renderer windows enforce CSP (`default-src 'self'`). Electron Fuses disable 
 - Foreground detection and browser URL reading use `osascript` (async child process). The exported functions (`getForegroundProcessName`, `isObsidianForeground`) return Promises on all platforms. Callers in `showWindow()` use `await`.
 - First-time browser URL detection triggers a macOS Automation permission prompt ("Vikunja Quick Entry wants to control [browser name]"). User must allow in System Settings > Privacy & Security > Automation.
 - Firefox URL detection on macOS is unreliable — Firefox has no AppleScript dictionary, so it falls back to System Events accessibility (which often fails). Safari, Chrome, Edge, Brave, Arc, Vivaldi, and Opera all work reliably.
-- Native messaging host manifests are written to `~/Library/Application Support/<browser>/NativeMessagingHosts/com.vikunja-quick-entry.browser.json` for Chrome, Edge, and Firefox.
-- The shell wrapper for native messaging is at `~/Library/Application Support/vikunja-quick-entry/vqe-bridge.sh` — placed in `userData` (not inside the `.app` bundle) to avoid invalidating the code signature.
+- Native messaging host manifests are written to `~/Library/Application Support/<browser>/NativeMessagingHosts/com.vikunja_quick_entry.browser.json` for Chrome, Edge, and Firefox.
+- The native messaging host name is `com.vikunja_quick_entry.browser` (underscores, not hyphens). Firefox's `connectNative()` validates host names against `/^\w+(\.\w+)*$/` which rejects hyphens.
+- The shell wrapper for native messaging is at `~/Library/Application Support/vikunja-quick-entry/vqe-bridge.sh` — placed in `userData` (not inside the `.app` bundle) to avoid invalidating the code signature. The wrapper embeds the full absolute path to `node` (resolved at registration time via `which node`) because macOS GUI apps have a minimal PATH that won't find node installed via Homebrew, nvm, fnm, etc.
 - Notifications work via Electron's `Notification` API. The first notification triggers a macOS permission prompt (System Settings > Notifications).
 
 ### Firefox Extension (.xpi) Build Process
@@ -158,3 +159,6 @@ $zip.Dispose()
 - Zip entry paths MUST use forward slashes (`icons/icon16.png`, not `icons\icon16.png`) or AMO rejects with "Invalid file name in archive"
 - The `.xpi` in the repo must always be the Mozilla-signed version
 - The extension ID is `browser-link@vikunja-quick-entry.app` (set in `manifest.json` under `browser_specific_settings.gecko.id`)
+- The manifest MUST include both `background.service_worker` and `background.scripts` — AMO rejects uploads with only `service_worker` (requires `scripts` as Firefox-compatible fallback). Chrome shows a harmless warning about `scripts` which can be ignored.
+- The native host name MUST use underscores (`com.vikunja_quick_entry.browser`), not hyphens — Firefox rejects hyphens in `connectNative()` host names
+- Bump `version` in `manifest.json` before each AMO upload — AMO rejects duplicate versions
