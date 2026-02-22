@@ -1,5 +1,5 @@
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 * {
@@ -173,6 +173,128 @@ body {
   font-style: italic;
 }
 
+/* Obsidian hint */
+.obsidian-hint {
+  padding: 2px 20px 8px;
+  font-size: 12px;
+  color: #7C3AED;
+}
+
+.obsidian-hint-key {
+  display: inline-block;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(124, 58, 237, 0.10);
+  border: 1px solid rgba(124, 58, 237, 0.20);
+  color: #7C3AED;
+  vertical-align: baseline;
+}
+
+/* Obsidian badge */
+.obsidian-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 20px 8px;
+  padding: 4px 8px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.20);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #7C3AED;
+  max-width: calc(100% - 40px);
+}
+
+.obsidian-badge-icon {
+  flex-shrink: 0;
+}
+
+#obsidian-badge-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obsidian-badge-remove {
+  -webkit-app-region: no-drag;
+  background: none;
+  border: none;
+  color: #7C3AED;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.5;
+  margin-left: auto;
+}
+
+.obsidian-badge-remove:hover {
+  opacity: 1;
+}
+
+/* Browser hint */
+.browser-hint {
+  padding: 2px 20px 8px;
+  font-size: 12px;
+  color: #2563EB;
+}
+
+.browser-hint-key {
+  display: inline-block;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(37, 99, 235, 0.10);
+  border: 1px solid rgba(37, 99, 235, 0.20);
+  color: #2563EB;
+  vertical-align: baseline;
+}
+
+/* Browser badge */
+.browser-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 20px 8px;
+  padding: 4px 8px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.20);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #2563EB;
+  max-width: calc(100% - 40px);
+}
+
+.browser-badge-icon {
+  flex-shrink: 0;
+}
+
+#browser-badge-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browser-badge-remove {
+  -webkit-app-region: no-drag;
+  background: none;
+  border: none;
+  color: #2563EB;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.5;
+  margin-left: auto;
+}
+
+.browser-badge-remove:hover {
+  opacity: 1;
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .drag-handle-pill {
@@ -224,5 +346,45 @@ body {
 
   .pending-indicator {
     color: #ecc94b;
+  }
+
+  .obsidian-hint {
+    color: #a78bfa;
+  }
+
+  .obsidian-hint-key {
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.12);
+    border-color: rgba(167, 139, 250, 0.25);
+  }
+
+  .obsidian-badge {
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.10);
+    border-color: rgba(167, 139, 250, 0.25);
+  }
+
+  .obsidian-badge-remove {
+    color: #a78bfa;
+  }
+
+  .browser-hint {
+    color: #60a5fa;
+  }
+
+  .browser-hint-key {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.12);
+    border-color: rgba(96, 165, 250, 0.25);
+  }
+
+  .browser-badge {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.10);
+    border-color: rgba(96, 165, 250, 0.25);
+  }
+
+  .browser-badge-remove {
+    color: #60a5fa;
   }
 }

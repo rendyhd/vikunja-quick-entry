@@ -7,6 +7,30 @@ const dragHandle = document.querySelector('.drag-handle');
 let errorTimeout = null;
 let selectedIndex = -1;
 let isStandaloneMode = false;
+
+// Inline link extraction (sandboxed renderer can't require modules)
+function _unescapeHtml(str) {
+  return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+}
+
+function extractTaskLink(description) {
+  if (!description) return null;
+  // Try notelink first
+  const noteMatch = description.match(/<!-- notelink:(obsidian:\/\/[^">\s]+) -->/);
+  if (noteMatch) {
+    const nameMatch = description.match(/\u{1F4CE}\s*([^<]+)<\/a>/u);
+    const name = nameMatch ? nameMatch[1].trim() : 'Obsidian note';
+    return { url: _unescapeHtml(noteMatch[1]), name, kind: 'note' };
+  }
+  // Then pagelink
+  const pageMatch = description.match(/<!-- pagelink:(https?:\/\/[^">\s]+) -->/);
+  if (pageMatch) {
+    const titleMatch = description.match(/\u{1F517}\s*([^<]+)<\/a>/u);
+    const title = titleMatch ? titleMatch[1].trim() : pageMatch[1];
+    return { url: _unescapeHtml(pageMatch[1]), title, kind: 'page' };
+  }
+  return null;
+}
 // Cache: skip re-fetch if opened again within 30s
 let lastFetchResult = null;
 let lastFetchTime = 0;
@@ -182,6 +206,24 @@ function buildTaskItemDOM(task) {
     });
   }
   titleRow.appendChild(title);
+
+  // Link icon (Obsidian or browser)
+  const taskLink = extractTaskLink(task.description);
+  if (taskLink) {
+    const linkBtn = document.createElement('button');
+    linkBtn.className = taskLink.kind === 'note' ? 'obsidian-link-btn' : 'browser-link-btn';
+    linkBtn.title = taskLink.kind === 'note'
+      ? `Open "${taskLink.name}" in Obsidian`
+      : `Open "${taskLink.title}"`;
+    linkBtn.innerHTML = taskLink.kind === 'note'
+      ? '<svg width="12" height="12" viewBox="0 0 100 100"><path d="M68.6 2.2 32.8 19.8a4 4 0 0 0-2.2 2.7L18.2 80.1a4 4 0 0 0 1 3.7l16.7 16a4 4 0 0 0 3.6 1.1l42-9.6a4 4 0 0 0 2.8-2.3L97.7 46a4 4 0 0 0-.5-3.8L72.3 3a4 4 0 0 0-3.7-1.8z" fill="currentColor"/></svg>'
+      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+    linkBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.viewerApi.openDeepLink(taskLink.url);
+    });
+    titleRow.appendChild(linkBtn);
+  }
 
   // Description indicator icon
   if (task.description) {

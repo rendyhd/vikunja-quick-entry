@@ -106,3 +106,59 @@ The `FusesPlugin` in `forge.config.js` flips Electron security fuses, which inva
 ### Security
 
 All renderer windows enforce CSP (`default-src 'self'`). Electron Fuses disable `RunAsNode`, `NodeOptions`, and CLI inspect. `api.js` validates URLs to block non-HTTP(S) protocols.
+
+### Platform-Specific Code
+
+- `src/obsidian-client.js` — Foreground app detection: koffi FFI on Windows (sync, ~1us), osascript/JXA on macOS (async, ~50ms). Both exported as async functions (`getForegroundProcessName`, `isObsidianForeground`).
+- `src/window-url-reader.js` — Browser URL reading: PowerShell + UI Automation on Windows, AppleScript on macOS. `BROWSER_PROCESSES` set uses exe names on Windows (`chrome`, `msedge`) vs display names on macOS (`Google Chrome`, `Safari`, `Arc`).
+- `src/browser-host-registration.js` — Native messaging host: Windows registry + `.bat` wrapper on Windows, filesystem manifests + `.sh` wrapper on macOS.
+- `src/notifications.js` — Cross-platform (Electron Notification API). No platform-specific code.
+- `src/focus.js` — Windows-only focus return trick (macOS returns focus automatically).
+- `src/settings/settings.js` — Platform-aware UI text: macOS shows `⌘`/`⌥` symbols, AppleScript descriptions, and permission notes; Windows shows `Ctrl`/`Alt` and Windows API references.
+
+### macOS Notes
+
+- Foreground detection and browser URL reading use `osascript` (async child process). The exported functions (`getForegroundProcessName`, `isObsidianForeground`) return Promises on all platforms. Callers in `showWindow()` use `await`.
+- First-time browser URL detection triggers a macOS Automation permission prompt ("Vikunja Quick Entry wants to control [browser name]"). User must allow in System Settings > Privacy & Security > Automation.
+- Firefox URL detection on macOS is unreliable — Firefox has no AppleScript dictionary, so it falls back to System Events accessibility (which often fails). Safari, Chrome, Edge, Brave, Arc, Vivaldi, and Opera all work reliably.
+- Native messaging host manifests are written to `~/Library/Application Support/<browser>/NativeMessagingHosts/com.vikunja_quick_entry.browser.json` for Chrome, Edge, and Firefox.
+- The native messaging host name is `com.vikunja_quick_entry.browser` (underscores, not hyphens). Firefox's `connectNative()` validates host names against `/^\w+(\.\w+)*$/` which rejects hyphens.
+- The shell wrapper for native messaging is at `~/Library/Application Support/vikunja-quick-entry/vqe-bridge.sh` — placed in `userData` (not inside the `.app` bundle) to avoid invalidating the code signature. The wrapper embeds the full absolute path to `node` (resolved at registration time via `which node`) because macOS GUI apps have a minimal PATH that won't find node installed via Homebrew, nvm, fnm, etc.
+- Notifications work via Electron's `Notification` API. The first notification triggers a macOS permission prompt (System Settings > Notifications).
+
+### Firefox Extension (.xpi) Build Process
+
+The Firefox extension requires Mozilla signing. **Do NOT rebuild the `.xpi` file directly** — it will break the signature.
+
+**Workflow:**
+1. Extension source lives in `extensions/browser/` (shared with Chrome "Load unpacked")
+2. Build an unsigned `.zip` from the source files for AMO upload
+3. Upload the `.zip` to [addons.mozilla.org](https://addons.mozilla.org) to get a signed `.xpi` back
+4. Place the signed `.xpi` at `extensions/browser/vikunja-quick-entry-firefox-extension.xpi`
+
+**Building the `.zip`** — use `System.IO.Compression` to ensure forward slashes in entry names (PowerShell's `Compress-Archive` uses backslashes, which AMO rejects):
+```powershell
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::Open("vikunja-quick-entry-firefox-extension.zip", 'Create')
+$extDir = [System.IO.Path]::GetFullPath("extensions\browser")
+$files = @(
+    @("manifest.json", "manifest.json"),
+    @("background.js", "background.js"),
+    @("icons\icon16.png", "icons/icon16.png"),
+    @("icons\icon48.png", "icons/icon48.png"),
+    @("icons\icon128.png", "icons/icon128.png")
+)
+foreach ($f in $files) {
+    $srcPath = Join-Path $extDir $f[0]
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $srcPath, $f[1]) | Out-Null
+}
+$zip.Dispose()
+```
+
+**Key constraints:**
+- Zip entry paths MUST use forward slashes (`icons/icon16.png`, not `icons\icon16.png`) or AMO rejects with "Invalid file name in archive"
+- The `.xpi` in the repo must always be the Mozilla-signed version
+- The extension ID is `browser-link@vikunja-quick-entry.app` (set in `manifest.json` under `browser_specific_settings.gecko.id`)
+- The manifest MUST include both `background.service_worker` and `background.scripts` — AMO rejects uploads with only `service_worker` (requires `scripts` as Firefox-compatible fallback). Chrome shows a harmless warning about `scripts` which can be ignored.
+- The native host name MUST use underscores (`com.vikunja_quick_entry.browser`), not hyphens — Firefox rejects hyphens in `connectNative()` host names
+- Bump `version` in `manifest.json` before each AMO upload — AMO rejects duplicate versions

@@ -10,12 +10,26 @@ const projectName = document.getElementById('project-name');
 const pendingIndicator = document.getElementById('pending-indicator');
 const pendingCount = document.getElementById('pending-count');
 const dragHandle = document.querySelector('.drag-handle');
+const obsidianHint = document.getElementById('obsidian-hint');
+const obsidianHintName = document.getElementById('obsidian-hint-name');
+const obsidianBadge = document.getElementById('obsidian-badge');
+const obsidianBadgeName = document.getElementById('obsidian-badge-name');
+const obsidianBadgeRemove = document.getElementById('obsidian-badge-remove');
+const browserHint = document.getElementById('browser-hint');
+const browserHintTitle = document.getElementById('browser-hint-title');
+const browserBadge = document.getElementById('browser-badge');
+const browserBadgeTitle = document.getElementById('browser-badge-title');
+const browserBadgeRemove = document.getElementById('browser-badge-remove');
 
 let errorTimeout = null;
 let exclamationTodayEnabled = true;
 let projectCycle = [];      // [{id, title}, ...] — default at index 0
 let currentProjectIndex = 0;
 let projectCycleModifier = 'ctrl'; // 'ctrl', 'alt', or 'ctrl+alt'
+let obsidianContext = null;  // { deepLink, noteName, vaultName, mode }
+let obsidianLinked = false;
+let browserContext = null;   // { url, title, displayTitle, mode }
+let browserLinked = false;
 
 function showError(msg) {
   errorMessage.textContent = msg;
@@ -102,6 +116,76 @@ async function updatePendingIndicator() {
   }
 }
 
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildNoteLinkHtml(deepLink, noteName) {
+  const safeUrl = escapeHtml(deepLink);
+  const safeName = escapeHtml(noteName);
+  return `<!-- notelink:${safeUrl} --><p><a href="${safeUrl}">\u{1F4CE} ${safeName}</a></p>`;
+}
+
+function buildPageLinkHtml(url, title) {
+  const safeUrl = escapeHtml(url);
+  const safeTitle = escapeHtml(title);
+  return `<!-- pagelink:${safeUrl} --><p><a href="${safeUrl}">\u{1F517} ${safeTitle}</a></p>`;
+}
+
+function updateObsidianUI() {
+  if (obsidianLinked && obsidianContext) {
+    obsidianHint.classList.add('hidden');
+    obsidianBadgeName.textContent = obsidianContext.noteName;
+    obsidianBadge.classList.remove('hidden');
+  } else if (obsidianContext && obsidianContext.mode === 'ask') {
+    obsidianHintName.textContent = obsidianContext.noteName;
+    obsidianHint.classList.remove('hidden');
+    obsidianBadge.classList.add('hidden');
+  } else {
+    obsidianHint.classList.add('hidden');
+    obsidianBadge.classList.add('hidden');
+  }
+}
+
+function updateBrowserUI() {
+  if (browserLinked && browserContext) {
+    browserHint.classList.add('hidden');
+    browserBadgeTitle.textContent = browserContext.displayTitle;
+    browserBadge.classList.remove('hidden');
+  } else if (browserContext && browserContext.mode === 'ask') {
+    browserHintTitle.textContent = browserContext.displayTitle;
+    browserHint.classList.remove('hidden');
+    browserBadge.classList.add('hidden');
+  } else {
+    browserHint.classList.add('hidden');
+    browserBadge.classList.add('hidden');
+  }
+}
+
+function toggleContextLink() {
+  if (obsidianContext && !obsidianLinked) {
+    obsidianLinked = true;
+    updateObsidianUI();
+    return;
+  }
+  if (browserContext && !browserLinked) {
+    browserLinked = true;
+    updateBrowserUI();
+    return;
+  }
+}
+
+function resetContextState() {
+  obsidianContext = null;
+  obsidianLinked = false;
+  browserContext = null;
+  browserLinked = false;
+  obsidianHint.classList.add('hidden');
+  obsidianBadge.classList.add('hidden');
+  browserHint.classList.add('hidden');
+  browserBadge.classList.add('hidden');
+}
+
 function resetInput() {
   input.value = '';
   input.disabled = false;
@@ -112,6 +196,7 @@ function resetInput() {
   todayHintBelow.classList.add('hidden');
   currentProjectIndex = 0;
   updateProjectHint();
+  resetContextState();
   input.focus();
 }
 
@@ -159,7 +244,16 @@ async function saveTask() {
   let title = input.value.trim();
   if (!title) return;
 
-  const description = descriptionInput.value.trim();
+  let description = descriptionInput.value.trim();
+
+  // Append context link to description
+  if (obsidianLinked && obsidianContext) {
+    const linkHtml = buildNoteLinkHtml(obsidianContext.deepLink, obsidianContext.noteName);
+    description = description ? description + '\n' + linkHtml : linkHtml;
+  } else if (browserLinked && browserContext) {
+    const linkHtml = buildPageLinkHtml(browserContext.url, browserContext.title);
+    description = description ? description + '\n' + linkHtml : linkHtml;
+  }
 
   let dueDate = null;
   if (exclamationTodayEnabled && title.includes('!')) {
@@ -231,6 +325,36 @@ window.api.onDragHover((_, hovering) => {
   if (dragHandle) dragHandle.classList.toggle('hover', hovering);
 });
 
+// Badge remove button handlers
+obsidianBadgeRemove.addEventListener('click', () => {
+  obsidianLinked = false;
+  updateObsidianUI();
+  input.focus();
+});
+
+browserBadgeRemove.addEventListener('click', () => {
+  browserLinked = false;
+  updateBrowserUI();
+  input.focus();
+});
+
+// Context link listeners from main process
+window.api.onObsidianContext((context) => {
+  obsidianContext = context;
+  if (context.mode === 'always') {
+    obsidianLinked = true;
+  }
+  updateObsidianUI();
+});
+
+window.api.onBrowserContext((context) => {
+  browserContext = context;
+  if (context.mode === 'always') {
+    browserLinked = true;
+  }
+  updateBrowserUI();
+});
+
 // Keyboard handling on title input
 input.addEventListener('keydown', async (e) => {
   if (isProjectCycleModifierPressed(e) && e.key === 'ArrowRight') {
@@ -248,6 +372,12 @@ input.addEventListener('keydown', async (e) => {
   if (e.key === 'Escape') {
     e.preventDefault();
     window.api.closeWindow();
+    return;
+  }
+
+  if (e.ctrlKey && e.key === 'l') {
+    e.preventDefault();
+    toggleContextLink();
     return;
   }
 
@@ -274,6 +404,12 @@ descriptionInput.addEventListener('keydown', async (e) => {
   if (isProjectCycleModifierPressed(e) && e.key === 'ArrowLeft') {
     e.preventDefault();
     cycleProject(-1);
+    return;
+  }
+
+  if (e.ctrlKey && e.key === 'l') {
+    e.preventDefault();
+    toggleContextLink();
     return;
   }
 

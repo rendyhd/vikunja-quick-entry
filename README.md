@@ -8,7 +8,6 @@ It lives in your system tray, stays out of the way, and is always one keystroke 
 
 ![Windows](https://img.shields.io/badge/Windows-supported-blue)
 ![macOS](https://img.shields.io/badge/macOS-supported-blue)
-![Linux](https://img.shields.io/badge/Linux-supported-blue)
 
 ![Slide1](https://github.com/user-attachments/assets/aaf21d48-40ae-4408-bb28-026de3c46bd7)
 
@@ -18,7 +17,7 @@ It lives in your system tray, stays out of the way, and is always one keystroke 
 
 ### Instant task capture with a global hotkey
 
-Press your hotkey from anywhere and a lightweight floating window appears. Type your task, hit Enter, and it's saved to Vikunja. The window disappears and focus returns to whatever you were doing. The whole interaction takes a few seconds. Including: 
+Press your hotkey from anywhere and a lightweight floating window appears. Type your task, hit Enter, and it's saved to Vikunja. The window disappears and focus returns to whatever you were doing. The whole interaction takes a few seconds. Including:
 - Quick-schedule for today (by adding `!` anywhere in your task title)
 - Cycle between projects (with a keyboard shortcut while the Quick Entry window is open)
 - Optional description
@@ -27,10 +26,38 @@ Press your hotkey from anywhere and a lightweight floating window appears. Type 
 
 A second hotkey opens Quick View: a floating list of your upcoming tasks. See what's due, check off completed items, and close it. No need to open Vikunja in a browser just to see what's next.
 - Keyboard-driven navigation (Navigate tasks with arrow keys, complete them with Enter, undo with Enter again)
-- Expand task descriptions inline with Shift+Enter
+- Expand task descriptions inline with Tab
 - Quick-schedule a task for today by pressing `!`
+- Edit task titles inline with Shift+Enter
 - Color-coded due dates and priorities (red for overdue, yellow for today, green for upcoming)
 - Flexible filtering (select which projects and filter requirements)
+- Clickable task titles open in browser
+
+### Obsidian integration
+
+When Obsidian is the foreground app, Quick Entry detects the active note and offers to attach a deep link to your task. The link is saved in the task description and shown in Quick View.
+
+- Requires the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) and [Advanced URI](https://github.com/Vinzent03/obsidian-advanced-uri) Obsidian plugins
+- Mode: Off / Ask / Always auto-link (configurable in Settings > Integrations)
+- Links survive file renames (uses UID-based deep links via Advanced URI)
+
+### Browser integration
+
+When a browser is the foreground app, Quick Entry detects the active tab's URL and title and offers to attach it to your task.
+
+- Supports Chrome, Edge, Brave, Opera, Vivaldi, Arc, Safari (macOS), and Firefox
+- Mode: Off / Ask / Always auto-link (configurable in Settings > Integrations)
+- Optional browser extension for instant native messaging detection (<1ms)
+- Fallback: PowerShell + UI Automation on Windows, AppleScript on macOS
+
+### Scheduled notifications
+
+Desktop reminders for overdue, due-today, and upcoming tasks at configurable times.
+
+- Two reminder times (default: 8:00 AM and 4:00 PM)
+- Per-category toggles (overdue, due today, upcoming)
+- Sound and persistence options
+- Works in both server and standalone modes
 
 ### Standalone mode
 
@@ -41,9 +68,9 @@ Use the app as a local task manager without any server connection. Enable it in 
 - Only one project (local) — no project configuration required
 - When you later connect to a server, you'll be prompted to upload your local tasks to your default Vikunja project
 
-### Frosted glass UI with dark mode
+### Frosted glass UI with theme selector
 
-Translucent, blurred background that blends with your desktop. Automatically matches your system's light or dark theme.
+Translucent, blurred background that blends with your desktop. Choose between System, Light, or Dark theme in Settings.
 
 ### Launch on startup
 
@@ -51,7 +78,7 @@ Enable it once in Settings and the app is always ready when your computer starts
 
 ### Settings GUI
 
-Configure everything — server URL, API token, hotkeys, projects, filters — through a built-in settings window. No need to edit config files (though you can if you want to).
+Configure everything — server URL, API token, hotkeys, projects, filters, notifications, integrations — through a built-in settings window with auto-save. No need to edit config files (though you can if you want to).
 
 ![Slide2](https://github.com/user-attachments/assets/4b924b62-da9d-4a73-8875-fda38332e346)
 
@@ -65,11 +92,8 @@ Grab the latest installer for your OS from the [Releases](../../releases) page.
 
 | Platform | Format |
 |----------|--------|
-| Windows  | `.exe` (Squirrel installer) |
-| macOS    | `.dmg` |
-| Linux    | `.deb`, `.rpm` |
-
-> **Windows note:** The Squirrel installer runs immediately without a confirmation dialog.
+| Windows  | `.exe` (NSIS installer) |
+| macOS    | `.dmg` (Apple Silicon) |
 
 ### macOS — First launch
 
@@ -99,7 +123,7 @@ Either method is a one-time step. The app opens normally after that.
    - Quick Entry default: `Alt+Shift+V`
    - Quick View default: `Alt+Shift+B`
 6. **Configure Quick View** — switch to the **Quick View** tab to set up your filter profile (projects, sort order, due date range).
-7. **Save** — you're ready to go.
+7. Settings auto-save — you're ready to go.
 
 Press your Quick Entry hotkey anywhere to create tasks. Press your Quick View hotkey to see your task list.
 
@@ -115,6 +139,7 @@ Press your Quick Entry hotkey anywhere to create tasks. Press your Quick View ho
 | **Tab** | Expand description field |
 | **Shift+Enter** | New line in description |
 | **Ctrl/Alt+Arrow** | Cycle between projects |
+| **Ctrl+L** | Link detected Obsidian note or browser tab |
 | **Escape** | Close without saving |
 | **!** in title | Schedule task for today |
 
@@ -147,43 +172,19 @@ Both floating windows also close when you press the hotkey again while they're o
 
 ## Configuration
 
-Most users should use the built-in Settings window (right-click tray icon > **Settings**). It has two tabs:
+Most users should use the built-in Settings window (right-click tray icon > **Settings**). It has five tabs:
 
-- **Quick Entry** — default project, secondary projects, hotkey, startup behavior, `!` scheduling, update checking
+- **Server** — Vikunja URL, API token, default project, launch on startup, auto-update check, standalone mode toggle
+- **Quick Entry** — secondary projects, hotkey, `!` scheduling, project cycle modifier
 - **Quick View** — viewer hotkey, project filter, sort order, due date filter, include-today toggle
-- **Standalone mode** — toggle at the top of Settings to switch between server-connected and offline-only mode
+- **Notifications** — enable/disable, reminder times, category toggles (overdue, due today, upcoming), sound, persistence
+- **Integrations** — Obsidian link mode + API key/vault/port, browser link mode + extension setup + bridge registration
 
-### Manual configuration
-
-For advanced use or automation, edit `config.json` directly:
-
-```json
-{
-  "standalone_mode": false,
-  "vikunja_url": "https://app.vikunja.cloud",
-  "api_token": "tk_your_api_token_here",
-  "default_project_id": 2,
-  "hotkey": "Alt+Shift+V",
-  "viewer_hotkey": "Alt+Shift+B",
-  "launch_on_startup": false,
-  "exclamation_today": true,
-  "auto_check_updates": true,
-  "project_cycle_modifier": "ctrl",
-  "secondary_projects": [],
-  "viewer_filter": {
-    "project_ids": [],
-    "sort_by": "due_date",
-    "order_by": "asc",
-    "due_date_filter": "all",
-    "include_today_all_projects": false
-  }
-}
-```
-
+For advanced use or automation, edit `config.json` directly.
 The app looks for `config.json` in two locations (checked in order):
 
 1. **Portable** — next to the executable / project root
-2. **User data** — OS app data directory (e.g. `%APPDATA%\vikunja-quick-entry` on Windows)
+2. **User data** — OS app data directory (e.g. `%APPDATA%\vikunja-quick-entry` on Windows, `~/Library/Application Support/vikunja-quick-entry` on macOS)
 
 ### Quick View filter options
 
@@ -208,19 +209,9 @@ Uses [Electron Accelerator](https://www.electronjs.org/docs/latest/api/accelerat
 | Scope | Permission | Used by |
 |-------|------------|---------|
 | Tasks | Create | Quick Entry |
-| Tasks | Read All | Quick View |
-| Tasks | Update | Quick View (complete/undo) |
+| Tasks | Read All | Quick View, Notifications |
+| Tasks | Update | Quick View (complete/undo/schedule/edit) |
 | Projects | Read All | Settings (project list), Quick Entry (task creation requires project access) |
-
----
-
-## Roadmap
-
-~~V3: Offline caching~~ — Shipped
-
-~~V4: Standalone mode~~ — Shipped
-
-~~V5: Quick View enhancements (load all tasks, schedule today, inline descriptions)~~ — Shipped
 
 ---
 
@@ -239,25 +230,35 @@ npm start
 
 ```
 src/
-  main.js              # Main process — tray, windows, IPC, hotkeys
-  preload.js           # Preload for Quick Entry window
-  viewer-preload.js    # Preload for Quick View window
-  settings-preload.js  # Preload for Settings window
-  api.js               # Vikunja API calls (net.request with 5s timeout)
-  cache.js             # Offline sync queue, task caching, standalone storage
-  config.js            # Config file loading/saving
-  focus.js             # Focus-return helper (Windows)
-  updater.js           # GitHub release checker (24h disk cache)
-  renderer/            # Quick Entry UI (HTML/CSS/JS)
-  viewer/              # Quick View UI (HTML/CSS/JS)
-  settings/            # Settings UI (HTML/CSS/JS)
+  main.js                  # Main process — tray, windows, IPC, hotkeys
+  preload.js               # Preload for Quick Entry window
+  viewer-preload.js        # Preload for Quick View window
+  settings-preload.js      # Preload for Settings window
+  api.js                   # Vikunja API calls (net.request with 5s timeout)
+  cache.js                 # Offline sync queue, task caching, standalone storage
+  config.js                # Config file loading/saving
+  focus.js                 # Focus-return helper (Windows)
+  updater.js               # GitHub release checker (24h disk cache)
+  notifications.js         # Scheduled desktop reminders
+  obsidian-client.js       # Obsidian foreground detection and REST API
+  browser-client.js        # Browser context reading (URL/title)
+  browser-host-registration.js  # Native messaging host setup
+  window-url-reader.js     # Browser URL reading (PowerShell/AppleScript)
+  note-link.js             # Deep link construction for Obsidian notes
+  renderer/                # Quick Entry UI (HTML/CSS/JS)
+  viewer/                  # Quick View UI (HTML/CSS/JS)
+  settings/                # Settings UI (HTML/CSS/JS)
+extensions/
+  browser/                 # Browser extension (Chrome unpacked + Firefox .xpi)
+resources/
+  native-messaging-host/   # Node.js bridge for browser native messaging
 ```
 
 ### Architecture
 
 The app uses Electron's multi-process model with strict context isolation:
 
-- **Main process** — app lifecycle, tray icon, global hotkeys, IPC handlers, window management
+- **Main process** — app lifecycle, tray icon, global hotkeys, IPC handlers, window management, notifications scheduling
 - **Renderer processes** — three sandboxed windows (Quick Entry, Quick View, Settings) that communicate with main only through preload-exposed IPC bridges
 - **HTTP layer** — all API calls use Electron's `net.request()` wrapped in Promises with manual timeout handling
 
@@ -269,24 +270,25 @@ Renderers are fully sandboxed (`sandbox: true`, `contextIsolation: true`, `nodeI
 |--------|----------|---------|
 | PUT | `/api/v1/projects/{id}/tasks` | Create a task (Quick Entry) |
 | GET | `/api/v1/projects` | Fetch project list (Settings) |
-| GET | `/api/v1/tasks` | Fetch tasks with filters (Quick View) |
+| GET | `/api/v1/tasks` | Fetch tasks with filters (Quick View, Notifications) |
 | POST | `/api/v1/tasks/{id}` | Update / mark task done (Quick View) |
 
 ### Building
 
 ```bash
-npm run make
+npx electron-builder --win    # Windows (.exe)
+npx electron-builder --mac    # macOS (.dmg)
 ```
 
-Produces platform-specific installers in `out/make/` — Squirrel `.exe` on Windows, `.dmg` on macOS, `.deb` and `.rpm` on Linux.
+Produces platform-specific installers in `dist/` — NSIS `.exe` on Windows, `.dmg` on macOS.
 
 ### CI/CD
 
-Pushing a version tag triggers a GitHub Actions workflow that builds on all three platforms and publishes a GitHub Release with all installers:
+Pushing a version tag triggers a GitHub Actions workflow that builds on Windows and macOS and publishes a GitHub Release with installers:
 
 ```bash
-git tag v2.1.0
-git push origin v2.1.0
+git tag v3.0.0
+git push origin v3.0.0
 ```
 
 Only `v*` tags trigger the workflow.

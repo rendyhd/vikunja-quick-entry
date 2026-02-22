@@ -1,15 +1,17 @@
-// --- Quick Entry elements ---
+// --- Server tab elements ---
 const urlInput = document.getElementById('vikunja-url');
 const tokenInput = document.getElementById('api-token');
 const toggleTokenBtn = document.getElementById('toggle-token');
 const projectSelect = document.getElementById('default-project');
 const loadProjectsBtn = document.getElementById('load-projects');
 const projectStatus = document.getElementById('project-status');
+const launchStartup = document.getElementById('launch-startup');
+const autoCheckUpdates = document.getElementById('auto-check-updates');
+
+// --- Quick Entry elements ---
 const hotkeyDisplay = document.getElementById('hotkey-display');
 const recordHotkeyBtn = document.getElementById('record-hotkey');
-const launchStartup = document.getElementById('launch-startup');
 const exclamationToday = document.getElementById('exclamation-today');
-const autoCheckUpdates = document.getElementById('auto-check-updates');
 const secondaryProjectsList = document.getElementById('secondary-projects-list');
 const addSecondarySelect = document.getElementById('add-secondary-project');
 const addSecondaryBtn = document.getElementById('add-secondary-btn');
@@ -28,6 +30,41 @@ const viewerOrderBy = document.getElementById('viewer-order-by');
 const viewerDueDateFilter = document.getElementById('viewer-due-date-filter');
 const viewerIncludeToday = document.getElementById('viewer-include-today');
 
+// --- Notification elements ---
+const notificationsEnabled = document.getElementById('notifications-enabled');
+const notificationOptions = document.getElementById('notification-options');
+const notifDailyEnabled = document.getElementById('notifications-daily-enabled');
+const notifDailyTime = document.getElementById('notifications-daily-time');
+const notifSecondaryEnabled = document.getElementById('notifications-secondary-enabled');
+const notifSecondaryTime = document.getElementById('notifications-secondary-time');
+const notifOverdue = document.getElementById('notifications-overdue');
+const notifDueToday = document.getElementById('notifications-due-today');
+const notifUpcoming = document.getElementById('notifications-upcoming');
+const notifPersistent = document.getElementById('notifications-persistent');
+const notifSound = document.getElementById('notifications-sound');
+const testNotificationBtn = document.getElementById('test-notification-btn');
+
+// --- Integration elements ---
+const obsidianMode = document.getElementById('obsidian-mode');
+const obsidianFields = document.getElementById('obsidian-fields');
+const obsidianApiKey = document.getElementById('obsidian-api-key');
+const toggleObsidianKeyBtn = document.getElementById('toggle-obsidian-key');
+const obsidianVaultName = document.getElementById('obsidian-vault-name');
+const obsidianPort = document.getElementById('obsidian-port');
+const testObsidianBtn = document.getElementById('test-obsidian-btn');
+const obsidianTestStatus = document.getElementById('obsidian-test-status');
+const browserLinkMode = document.getElementById('browser-link-mode');
+const browserFields = document.getElementById('browser-fields');
+const browserExtensionId = document.getElementById('browser-extension-id');
+const registerBrowserBtn = document.getElementById('register-browser-btn');
+const openExtensionFolderBtn = document.getElementById('open-extension-folder-btn');
+const chromeBridgeDot = document.getElementById('chrome-bridge-dot');
+const firefoxBridgeDot = document.getElementById('firefox-bridge-dot');
+const downloadFirefoxXpiBtn = document.getElementById('download-firefox-xpi-btn');
+const firefoxDownloadStatus = document.getElementById('firefox-download-status');
+const testBrowserBridgeBtn = document.getElementById('test-browser-bridge-btn');
+const bridgeTestOutput = document.getElementById('bridge-test-output');
+
 // --- Standalone mode elements ---
 const standaloneMode = document.getElementById('standalone-mode');
 const serverSettings = document.getElementById('server-settings');
@@ -38,31 +75,153 @@ const uploadYesBtn = document.getElementById('upload-yes');
 const uploadNoBtn = document.getElementById('upload-no');
 const uploadStatus = document.getElementById('upload-status');
 
+// --- Theme element ---
+const themeSelect = document.getElementById('theme-select');
+
 // --- Shared elements ---
 const githubLink = document.getElementById('github-link');
 const settingsError = document.getElementById('settings-error');
-const btnSave = document.getElementById('btn-save');
-const btnCancel = document.getElementById('btn-cancel');
+const saveStatus = document.getElementById('save-status');
 
 let recordingHotkey = false;
 let recordingViewerHotkey = false;
-let loadedProjects = null; // Cache projects for Quick View tab
-let secondaryProjects = []; // [{id, title}, ...]
-let wasStandaloneMode = false; // Track if standalone was enabled when settings loaded
+let loadedProjects = null;
+let secondaryProjects = [];
+let wasStandaloneMode = false;
+let saveTimeout = null;
+let initializing = true; // Suppress auto-save during initial load
+
+// --- Platform detection: hide platform-specific elements + text overrides ---
+const _platform = window.settingsApi.getPlatform();
+const _isMac = _platform === 'darwin';
+
+(function hidePlatformElements() {
+  if (_isMac) {
+    document.querySelectorAll('.platform-windows-only').forEach((el) => {
+      el.style.display = 'none';
+    });
+  }
+  if (!_isMac) {
+    document.querySelectorAll('.platform-macos-note').forEach((el) => {
+      el.style.display = 'none';
+    });
+  }
+})();
+
+// macOS-specific text overrides
+if (_isMac) {
+  // Browser integration descriptions
+  const howItWorks = document.getElementById('browser-how-it-works');
+  if (howItWorks) {
+    howItWorks.textContent = 'Vikunja Quick Entry reads the URL from the active browser tab using AppleScript when Quick Entry opens. This works with Chrome, Safari, Edge, Brave, Opera, Vivaldi, and Arc. Firefox has limited support.';
+  }
+  const autoDetect = document.getElementById('browser-auto-detect-note');
+  if (autoDetect) {
+    autoDetect.textContent = 'No setup needed for Chrome, Safari, Edge, Brave, Vivaldi, and Arc. On first use, macOS will ask you to allow control of the browser. Firefox URL detection is unreliable and may not work.';
+  }
+
+  // Firefox detection note: emphasize unreliable fallback on macOS
+  const firefoxNote = document.getElementById('firefox-detect-note');
+  if (firefoxNote) {
+    firefoxNote.textContent = 'Firefox fallback detection via AppleScript is unreliable on macOS. Installing the extension is strongly recommended for Firefox support.';
+  }
+
+  // Obsidian "Ask" option: Ctrl+L → ⌘L
+  const obsidianAskOption = obsidianMode.querySelector('option[value="ask"]');
+  if (obsidianAskOption) obsidianAskOption.textContent = 'Ask (\u2318L to link)';
+
+  // Browser "Ask" option: Ctrl+L → ⌘L
+  const browserAskOption = browserLinkMode.querySelector('option[value="ask"]');
+  if (browserAskOption) browserAskOption.textContent = 'Ask (\u2318L to link)';
+
+  // Project cycle modifier dropdown options
+  const ctrlOption = projectCycleModifier.querySelector('option[value="ctrl"]');
+  if (ctrlOption) ctrlOption.textContent = '\u2318 Cmd + Arrow keys';
+  const altOption = projectCycleModifier.querySelector('option[value="alt"]');
+  if (altOption) altOption.textContent = '\u2325 Option + Arrow keys';
+  const ctrlAltOption = projectCycleModifier.querySelector('option[value="ctrl+alt"]');
+  if (ctrlAltOption) ctrlAltOption.textContent = '\u2318\u2325 Cmd+Option + Arrow keys';
+}
+
+// --- Auto-save ---
+function showSaveStatus(text, type) {
+  saveStatus.textContent = text;
+  saveStatus.className = 'save-status' + (type ? ` ${type}` : '');
+  if (type === 'saved') {
+    setTimeout(() => {
+      if (saveStatus.textContent === text) {
+        saveStatus.textContent = '';
+        saveStatus.className = 'save-status';
+      }
+    }, 2000);
+  }
+}
+
+async function doAutoSave() {
+  if (initializing) return;
+  hideError();
+
+  const settings = gatherSettings();
+  settings.partial = true; // Tell main process not to require all fields
+
+  showSaveStatus('Saving...', 'saving');
+
+  const result = await window.settingsApi.saveSettings(settings);
+
+  if (result.success) {
+    showSaveStatus('Saved', 'saved');
+  } else {
+    showSaveStatus('', '');
+    showError(result.error || 'Failed to save settings.');
+  }
+}
+
+function scheduleAutoSave(delay = 500) {
+  if (initializing) return;
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(doAutoSave, delay);
+}
+
+function immediateAutoSave() {
+  if (initializing) return;
+  clearTimeout(saveTimeout);
+  doAutoSave();
+}
+
+// Attach auto-save to all form inputs
+function setupAutoSave() {
+  // Text inputs: debounced save
+  const textInputs = document.querySelectorAll(
+    'input[type="url"], input[type="password"], input[type="text"], input[type="number"], input[type="time"]'
+  );
+  textInputs.forEach((input) => {
+    // Skip readonly inputs (hotkey displays) — they save after recording
+    if (input.readOnly) return;
+    input.addEventListener('input', () => scheduleAutoSave());
+  });
+
+  // Checkboxes and selects: immediate save
+  const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+  checkboxes.forEach((cb) => {
+    cb.addEventListener('change', () => immediateAutoSave());
+  });
+
+  const selects = document.querySelectorAll('select');
+  selects.forEach((sel) => {
+    // Theme select has its own handler
+    if (sel.id === 'theme-select') return;
+    sel.addEventListener('change', () => immediateAutoSave());
+  });
+}
 
 // --- Standalone mode UI toggle ---
 function updateStandaloneUI(isStandalone) {
   if (isStandalone) {
     serverSettings.classList.add('hidden');
-    tabBar.classList.add('hidden');
-    // Hide both tabs, show only Quick Entry stripped content
-    document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
-    document.getElementById('tab-quick-entry').classList.add('active');
-    // Hide server-dependent settings
+    // Hide server-dependent settings across all tabs
     document.querySelectorAll('.server-dependent').forEach((el) => el.classList.add('hidden'));
   } else {
     serverSettings.classList.remove('hidden');
-    tabBar.classList.remove('hidden');
     document.querySelectorAll('.server-dependent').forEach((el) => el.classList.remove('hidden'));
   }
   // Hide upload dialog when toggling
@@ -120,7 +279,6 @@ uploadYesBtn.addEventListener('click', async () => {
     uploadStatus.textContent = `${uploadResult.uploaded} task(s) uploaded.`;
     uploadStatus.className = 'status-text success';
     wasStandaloneMode = false;
-    setTimeout(() => window.close(), 1000);
   } else {
     const msg = uploadResult.uploaded > 0
       ? `${uploadResult.uploaded} uploaded, but some failed: ${uploadResult.error}`
@@ -132,26 +290,25 @@ uploadYesBtn.addEventListener('click', async () => {
 
 uploadNoBtn.addEventListener('click', async () => {
   hideError();
-  const settings = gatherSettings({ standalone_mode: false });
-
-  if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
-    showError('Configure server settings before saving.');
-    return;
-  }
-
-  btnSave.disabled = true;
   uploadDialog.hidden = true;
+  wasStandaloneMode = false;
+  immediateAutoSave();
+});
 
-  const saveResult = await window.settingsApi.saveSettings(settings);
+// --- Theme live preview + auto-save ---
+themeSelect.addEventListener('change', () => {
+  window.settingsApi.previewTheme(themeSelect.value);
+  immediateAutoSave();
+});
 
-  btnSave.disabled = false;
+// --- Notification master toggle ---
+notificationsEnabled.addEventListener('change', () => {
+  notificationOptions.disabled = !notificationsEnabled.checked;
+});
 
-  if (saveResult.success) {
-    wasStandaloneMode = false;
-    window.close();
-  } else {
-    showError(saveResult.error || 'Failed to save settings.');
-  }
+// --- Test notification ---
+testNotificationBtn.addEventListener('click', () => {
+  window.settingsApi.testNotification();
 });
 
 // --- Tab switching ---
@@ -170,10 +327,167 @@ tabBtns.forEach((btn) => {
   });
 });
 
+// --- Integration toggles ---
+obsidianMode.addEventListener('change', () => {
+  obsidianFields.classList.toggle('hidden', obsidianMode.value === 'off');
+});
+
+browserLinkMode.addEventListener('change', () => {
+  browserFields.classList.toggle('hidden', browserLinkMode.value === 'off');
+});
+
+toggleObsidianKeyBtn.addEventListener('click', () => {
+  const isPassword = obsidianApiKey.type === 'password';
+  obsidianApiKey.type = isPassword ? 'text' : 'password';
+  toggleObsidianKeyBtn.textContent = isPassword ? 'Hide' : 'Show';
+});
+
+testObsidianBtn.addEventListener('click', async () => {
+  const key = obsidianApiKey.value.trim();
+  const port = parseInt(obsidianPort.value, 10) || 27124;
+  if (!key) {
+    obsidianTestStatus.textContent = 'Enter an API key first.';
+    obsidianTestStatus.className = 'status-text error';
+    return;
+  }
+  obsidianTestStatus.textContent = 'Testing...';
+  obsidianTestStatus.className = 'status-text';
+  testObsidianBtn.disabled = true;
+
+  const result = await window.settingsApi.testObsidianConnection(key, port);
+  testObsidianBtn.disabled = false;
+
+  if (result.reachable) {
+    const note = result.noteName ? ` (active: ${result.noteName})` : '';
+    obsidianTestStatus.textContent = `Connected${note}`;
+    obsidianTestStatus.className = 'status-text success';
+  } else {
+    obsidianTestStatus.textContent = 'Could not connect. Check API key, port, and that Obsidian is running.';
+    obsidianTestStatus.className = 'status-text error';
+  }
+});
+
+registerBrowserBtn.addEventListener('click', async () => {
+  const extId = browserExtensionId.value.trim();
+  registerBrowserBtn.disabled = true;
+  registerBrowserBtn.textContent = 'Registering...';
+
+  const result = await window.settingsApi.registerBrowserHosts(extId);
+  registerBrowserBtn.disabled = false;
+  registerBrowserBtn.textContent = 'Register Bridge';
+
+  updateBridgeDots(result);
+});
+
+openExtensionFolderBtn.addEventListener('click', () => {
+  window.settingsApi.openBrowserExtensionFolder();
+});
+
+downloadFirefoxXpiBtn.addEventListener('click', async () => {
+  downloadFirefoxXpiBtn.disabled = true;
+  firefoxDownloadStatus.textContent = '';
+
+  const result = await window.settingsApi.saveFirefoxExtension();
+  downloadFirefoxXpiBtn.disabled = false;
+
+  if (result.success) {
+    firefoxDownloadStatus.textContent = 'Saved!';
+    firefoxDownloadStatus.className = 'status-text success';
+  } else if (!result.canceled) {
+    firefoxDownloadStatus.textContent = result.error || 'Failed to save.';
+    firefoxDownloadStatus.className = 'status-text error';
+  }
+});
+
+testBrowserBridgeBtn.addEventListener('click', async () => {
+  testBrowserBridgeBtn.disabled = true;
+  testBrowserBridgeBtn.textContent = 'Testing...';
+  bridgeTestOutput.hidden = false;
+  bridgeTestOutput.textContent = 'Running diagnostics...';
+
+  const result = await window.settingsApi.testBrowserBridge();
+  testBrowserBridgeBtn.disabled = false;
+  testBrowserBridgeBtn.textContent = 'Test Bridge';
+
+  const lines = [];
+  lines.push('=== Bridge Diagnostics ===');
+  lines.push('');
+
+  // Node
+  lines.push(`Node: ${result.nodeAvailable ? result.nodeVersion : 'NOT FOUND'}`);
+  lines.push('');
+
+  // Bridge script
+  lines.push(`Bridge JS: ${result.bridgeExists ? 'OK' : 'MISSING'}`);
+  lines.push(`  ${result.bridgePath}`);
+  lines.push('');
+
+  // Wrapper
+  lines.push(`Wrapper: ${result.wrapperExists ? 'OK' : 'MISSING'}${result.wrapperExecutable === false ? ' (NOT EXECUTABLE)' : ''}`);
+  lines.push(`  ${result.wrapperPath}`);
+  lines.push('');
+
+  // Firefox manifest
+  if (result.firefoxManifestPath) {
+    lines.push(`Firefox manifest: ${result.firefoxManifestExists ? 'OK' : 'MISSING'}`);
+    lines.push(`  ${result.firefoxManifestPath}`);
+    if (result.firefoxManifestContent) {
+      lines.push(`  path: ${result.firefoxManifestContent.path}`);
+      lines.push(`  extensions: ${JSON.stringify(result.firefoxManifestContent.allowed_extensions)}`);
+    }
+    if (result.firefoxManifestError) {
+      lines.push(`  ERROR: ${result.firefoxManifestError}`);
+    }
+    lines.push('');
+  }
+
+  // Chrome manifest
+  if (result.chromeManifestPath) {
+    lines.push(`Chrome manifest: ${result.chromeManifestExists ? 'OK' : 'MISSING'}`);
+    lines.push(`  ${result.chromeManifestPath}`);
+    lines.push('');
+  }
+
+  // Context file
+  lines.push(`Context file: ${result.contextExists ? 'EXISTS' : 'NOT FOUND'}`);
+  lines.push(`  ${result.contextPath}`);
+  if (result.contextData) {
+    lines.push(`  url: ${result.contextData.url || '(none)'}`);
+    lines.push(`  title: ${result.contextData.title || '(none)'}`);
+    lines.push(`  age: ${result.contextAge || '(no timestamp)'}`);
+  }
+  if (result.contextError) {
+    lines.push(`  ERROR: ${result.contextError}`);
+  }
+  lines.push('');
+
+  // Live context
+  lines.push(`Live getBrowserContext(): ${result.liveContext ? 'OK' : 'null'}`);
+  if (result.liveContext) {
+    lines.push(`  url: ${result.liveContext.url}`);
+    lines.push(`  title: ${result.liveContext.title}`);
+  }
+
+  bridgeTestOutput.textContent = lines.join('\n');
+});
+
+function updateBridgeDots(status) {
+  chromeBridgeDot.classList.toggle('connected', !!status.chrome);
+  firefoxBridgeDot.classList.toggle('connected', !!status.firefox);
+}
+
+async function checkBrowserRegistration() {
+  const status = await window.settingsApi.checkBrowserHostRegistration();
+  updateBridgeDots(status);
+}
+
 // --- Load existing config ---
 async function loadExistingConfig() {
   const config = await window.settingsApi.getFullConfig();
-  if (!config) return;
+  if (!config) {
+    initializing = false;
+    return;
+  }
 
   // Standalone mode
   standaloneMode.checked = config.standalone_mode === true;
@@ -191,6 +505,9 @@ async function loadExistingConfig() {
   projectCycleModifier.value = config.project_cycle_modifier || 'ctrl';
   updateCycleShortcutDisplay(projectCycleModifier.value);
 
+  // Theme
+  themeSelect.value = config.theme || 'system';
+
   // Quick View settings
   viewerHotkeyDisplay.value = config.viewer_hotkey || 'Alt+Shift+B';
 
@@ -199,6 +516,34 @@ async function loadExistingConfig() {
     viewerOrderBy.value = config.viewer_filter.order_by || 'asc';
     viewerDueDateFilter.value = config.viewer_filter.due_date_filter || 'all';
     viewerIncludeToday.checked = config.viewer_filter.include_today_all_projects === true;
+  }
+
+  // Notification settings
+  notificationsEnabled.checked = config.notifications_enabled === true;
+  notificationOptions.disabled = !notificationsEnabled.checked;
+  notifDailyEnabled.checked = config.notifications_daily_reminder_enabled !== false;
+  notifDailyTime.value = config.notifications_daily_reminder_time || '08:00';
+  notifSecondaryEnabled.checked = config.notifications_secondary_reminder_enabled === true;
+  notifSecondaryTime.value = config.notifications_secondary_reminder_time || '16:00';
+  notifOverdue.checked = config.notifications_overdue_enabled !== false;
+  notifDueToday.checked = config.notifications_due_today_enabled !== false;
+  notifUpcoming.checked = config.notifications_upcoming_enabled === true;
+  notifPersistent.checked = config.notifications_persistent === true;
+  notifSound.checked = config.notifications_sound !== false;
+
+  // Integration settings
+  obsidianMode.value = config.obsidian_mode || 'off';
+  obsidianFields.classList.toggle('hidden', obsidianMode.value === 'off');
+  obsidianApiKey.value = config.obsidian_api_key || '';
+  obsidianVaultName.value = config.obsidian_vault_name || '';
+  obsidianPort.value = config.obsidian_port || 27124;
+  browserLinkMode.value = config.browser_link_mode || 'off';
+  browserFields.classList.toggle('hidden', browserLinkMode.value === 'off');
+  browserExtensionId.value = config.browser_extension_id || '';
+
+  // Check browser registration status
+  if (browserLinkMode.value !== 'off') {
+    checkBrowserRegistration();
   }
 
   // If we have URL and token, auto-load projects
@@ -212,14 +557,15 @@ async function loadExistingConfig() {
       refreshAddSecondaryDropdown();
     }
 
-    // Populate viewer projects with preselected IDs
+    // Populate viewer projects list with preselected IDs
     if (loadedProjects) {
-      populateViewerProjects(
-        loadedProjects,
-        config.viewer_filter ? config.viewer_filter.project_ids : []
-      );
+      const selectedIds = config.viewer_filter ? config.viewer_filter.project_ids : [];
+      populateViewerProjectsList(loadedProjects, selectedIds);
     }
   }
+
+  // Done loading — enable auto-save
+  initializing = false;
 }
 
 // --- Token toggle ---
@@ -309,6 +655,7 @@ function renderSecondaryProjects() {
         [secondaryProjects[index - 1], secondaryProjects[index]] =
           [secondaryProjects[index], secondaryProjects[index - 1]];
         renderSecondaryProjects();
+        immediateAutoSave();
       });
       actions.appendChild(upBtn);
     }
@@ -323,6 +670,7 @@ function renderSecondaryProjects() {
         [secondaryProjects[index], secondaryProjects[index + 1]] =
           [secondaryProjects[index + 1], secondaryProjects[index]];
         renderSecondaryProjects();
+        immediateAutoSave();
       });
       actions.appendChild(downBtn);
     }
@@ -336,6 +684,7 @@ function renderSecondaryProjects() {
       secondaryProjects.splice(index, 1);
       renderSecondaryProjects();
       refreshAddSecondaryDropdown();
+      immediateAutoSave();
     });
     actions.appendChild(removeBtn);
 
@@ -383,6 +732,7 @@ addSecondaryBtn.addEventListener('click', () => {
   secondaryProjects.push({ id: project.id, title: project.title });
   renderSecondaryProjects();
   refreshAddSecondaryDropdown();
+  immediateAutoSave();
 });
 
 projectSelect.addEventListener('change', () => {
@@ -390,6 +740,7 @@ projectSelect.addEventListener('change', () => {
   secondaryProjects = secondaryProjects.filter(p => String(p.id) !== defaultId);
   renderSecondaryProjects();
   refreshAddSecondaryDropdown();
+  immediateAutoSave();
 });
 
 function setProjectStatus(msg, type) {
@@ -397,8 +748,8 @@ function setProjectStatus(msg, type) {
   projectStatus.className = 'status-text' + (type ? ` ${type}` : '');
 }
 
-// --- Viewer project loading ---
-function populateViewerProjects(projects, selectedIds) {
+// --- Viewer project multi-select ---
+function populateViewerProjectsList(projects, selectedIds) {
   viewerProjectsList.innerHTML = '';
   const selectedSet = new Set((selectedIds || []).map(String));
 
@@ -407,13 +758,24 @@ function populateViewerProjects(projects, selectedIds) {
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.value = project.id;
-    cb.checked = selectedSet.size === 0 || selectedSet.has(String(project.id));
+    cb.checked = selectedSet.has(String(project.id));
+    cb.addEventListener('change', () => immediateAutoSave());
+
     const span = document.createElement('span');
     span.textContent = project.title;
+
     label.appendChild(cb);
     label.appendChild(span);
     viewerProjectsList.appendChild(label);
   }
+}
+
+function getSelectedViewerProjectIds() {
+  const ids = [];
+  viewerProjectsList.querySelectorAll('input[type="checkbox"]:checked').forEach((cb) => {
+    ids.push(Number(cb.value));
+  });
+  return ids;
 }
 
 loadViewerProjectsBtn.addEventListener('click', async () => {
@@ -421,7 +783,7 @@ loadViewerProjectsBtn.addEventListener('click', async () => {
   const token = tokenInput.value.trim();
 
   if (!url || !token) {
-    viewerProjectStatus.textContent = 'Enter URL and API token first.';
+    viewerProjectStatus.textContent = 'Enter URL and API token in Server tab first.';
     viewerProjectStatus.className = 'status-text error';
     return;
   }
@@ -446,27 +808,10 @@ loadViewerProjectsBtn.addEventListener('click', async () => {
   }
 
   loadedProjects = result.projects;
-  populateViewerProjects(result.projects, []);
+  populateViewerProjectsList(result.projects, []);
   viewerProjectStatus.textContent = `${result.projects.length} projects loaded.`;
   viewerProjectStatus.className = 'status-text success';
 });
-
-function getSelectedViewerProjectIds() {
-  const checkboxes = viewerProjectsList.querySelectorAll('input[type="checkbox"]');
-  if (checkboxes.length === 0) return [];
-
-  const selected = [];
-  let allChecked = true;
-  for (const cb of checkboxes) {
-    if (cb.checked) {
-      selected.push(Number(cb.value));
-    } else {
-      allChecked = false;
-    }
-  }
-  // If all are selected, return empty array (means "all projects")
-  return allChecked ? [] : selected;
-}
 
 // --- Hotkey recording (shared utility) ---
 
@@ -589,6 +934,7 @@ hotkeyDisplay.addEventListener('keydown', (e) => {
   hotkeyDisplay.value = accelerator;
   recordingHotkey = false;
   recordHotkeyBtn.textContent = 'Record';
+  immediateAutoSave();
 });
 
 hotkeyDisplay.addEventListener('blur', () => {
@@ -620,6 +966,7 @@ viewerHotkeyDisplay.addEventListener('keydown', (e) => {
   viewerHotkeyDisplay.value = accelerator;
   recordingViewerHotkey = false;
   recordViewerHotkeyBtn.textContent = 'Record';
+  immediateAutoSave();
 });
 
 viewerHotkeyDisplay.addEventListener('blur', () => {
@@ -645,72 +992,37 @@ function gatherSettings(overrides = {}) {
     auto_check_updates: autoCheckUpdates.checked,
     project_cycle_modifier: projectCycleModifier.value || 'ctrl',
     viewer_hotkey: viewerHotkeyDisplay.value || 'Alt+Shift+B',
+    theme: themeSelect.value || 'system',
     viewer_filter: {
       project_ids: getSelectedViewerProjectIds(),
-      sort_by: viewerSortBy.value,
-      order_by: viewerOrderBy.value,
-      due_date_filter: viewerDueDateFilter.value,
+      sort_by: viewerSortBy.value || 'due_date',
+      order_by: viewerOrderBy.value || 'asc',
+      due_date_filter: viewerDueDateFilter.value || 'all',
       include_today_all_projects: viewerIncludeToday.checked,
     },
     secondary_projects: secondaryProjects.map(p => ({ id: p.id, title: p.title })),
+    // Notification settings
+    notifications_enabled: notificationsEnabled.checked,
+    notifications_persistent: notifPersistent.checked,
+    notifications_daily_reminder_enabled: notifDailyEnabled.checked,
+    notifications_daily_reminder_time: notifDailyTime.value || '08:00',
+    notifications_secondary_reminder_enabled: notifSecondaryEnabled.checked,
+    notifications_secondary_reminder_time: notifSecondaryTime.value || '16:00',
+    notifications_overdue_enabled: notifOverdue.checked,
+    notifications_due_today_enabled: notifDueToday.checked,
+    notifications_upcoming_enabled: notifUpcoming.checked,
+    notifications_sound: notifSound.checked,
+    // Integration settings
+    obsidian_mode: obsidianMode.value || 'off',
+    obsidian_api_key: obsidianApiKey.value.trim(),
+    obsidian_port: parseInt(obsidianPort.value, 10) || 27124,
+    obsidian_vault_name: obsidianVaultName.value.trim(),
+    browser_link_mode: browserLinkMode.value || 'off',
+    browser_extension_id: browserExtensionId.value.trim(),
     ...overrides,
   };
   return settings;
 }
-
-// --- Save ---
-btnSave.addEventListener('click', async () => {
-  hideError();
-
-  const isStandalone = standaloneMode.checked;
-
-  const settings = gatherSettings();
-
-  // Validation: only require server fields when not in standalone mode
-  if (!isStandalone) {
-    if (!settings.vikunja_url) {
-      showError('Vikunja URL is required.');
-      urlInput.focus();
-      return;
-    }
-
-    if (!settings.api_token) {
-      showError('API token is required.');
-      tokenInput.focus();
-      return;
-    }
-
-    if (!settings.default_project_id) {
-      showError('Please select a default project. Click "Load Projects" first.');
-      return;
-    }
-  }
-
-  // If upload dialog is showing, hide it — the dialog buttons handle upload/discard independently
-  if (!uploadDialog.hidden) {
-    uploadDialog.hidden = true;
-  }
-
-  btnSave.disabled = true;
-  btnSave.textContent = 'Saving...';
-
-  const result = await window.settingsApi.saveSettings(settings);
-
-  btnSave.disabled = false;
-  btnSave.textContent = 'Save';
-
-  if (result.success) {
-    wasStandaloneMode = isStandalone;
-    window.close();
-  } else {
-    showError(result.error || 'Failed to save settings.');
-  }
-});
-
-// --- Cancel ---
-btnCancel.addEventListener('click', () => {
-  window.close();
-});
 
 // --- GitHub link ---
 githubLink.addEventListener('click', (e) => {
@@ -731,14 +1043,13 @@ function hideError() {
 
 // --- Project cycle modifier ---
 function updateCycleShortcutDisplay(modifier) {
-  const displayMap = {
-    'ctrl': 'Ctrl',
-    'alt': 'Alt',
-    'ctrl+alt': 'Ctrl+Alt',
-  };
-  const display = displayMap[modifier] || 'Ctrl';
+  const displayMap = _isMac
+    ? { 'ctrl': '\u2318 Cmd', 'alt': '\u2325 Option', 'ctrl+alt': '\u2318\u2325 Cmd+Option' }
+    : { 'ctrl': 'Ctrl', 'alt': 'Alt', 'ctrl+alt': 'Ctrl+Alt' };
+  const display = displayMap[modifier] || (_isMac ? '\u2318 Cmd' : 'Ctrl');
   cycleShortcutHint.textContent = display;
-  cycleShortcutDisplay.textContent = `${display}+Left/Right`;
+  const arrowDisplay = _isMac ? `${display}+\u2190/\u2192` : `${display}+Left/Right`;
+  cycleShortcutDisplay.textContent = arrowDisplay;
 }
 
 projectCycleModifier.addEventListener('change', () => {
@@ -746,4 +1057,6 @@ projectCycleModifier.addEventListener('change', () => {
 });
 
 // --- Init ---
-loadExistingConfig();
+loadExistingConfig().then(() => {
+  setupAutoSave();
+});

@@ -1,48 +1,3 @@
-// Handle Squirrel.Windows install/update/uninstall events
-// This must run before anything else
-if (process.platform === 'win32') {
-  const squirrelCommand = process.argv[1];
-  if (squirrelCommand) {
-    const { spawn } = require('child_process');
-    const path = require('path');
-    const fs = require('fs');
-    const appFolder = path.resolve(process.execPath, '..');
-    const rootFolder = path.resolve(appFolder, '..');
-    const updateExe = path.resolve(path.join(rootFolder, 'Update.exe'));
-    const exeName = path.basename(process.execPath);
-
-    const spawnUpdate = (args) => {
-      try {
-        spawn(updateExe, args, { detached: true });
-      } catch {
-        // Update.exe not found — ignore
-      }
-    };
-
-    if (squirrelCommand === '--squirrel-install' || squirrelCommand === '--squirrel-updated') {
-      spawnUpdate(['--createShortcut', exeName]);
-      setTimeout(() => process.exit(0), 1500);
-    } else if (squirrelCommand === '--squirrel-uninstall') {
-      spawnUpdate(['--removeShortcut', exeName]);
-      // Clean up user data (config, cache) from %APPDATA%
-      const userDataDir = path.join(process.env.APPDATA, 'vikunja-quick-entry');
-      try {
-        fs.rmSync(userDataDir, { recursive: true, force: true });
-      } catch {
-        // Ignore cleanup failures
-      }
-      setTimeout(() => process.exit(0), 1500);
-    } else if (squirrelCommand === '--squirrel-obsolete') {
-      process.exit(0);
-    }
-
-    // If we matched a squirrel command, stop executing the rest of main.js
-    if (squirrelCommand.startsWith('--squirrel-')) {
-      return;
-    }
-  }
-}
-
 const {
   app,
   BrowserWindow,
@@ -51,6 +6,7 @@ const {
   globalShortcut,
   ipcMain,
   nativeImage,
+  nativeTheme,
   Notification,
   shell,
   dialog,
@@ -58,9 +14,14 @@ const {
 } = require('electron');
 const path = require('path');
 const { getConfig, saveConfig } = require('./config');
-const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate, updateTask } = require('./api');
+const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate, updateTask, fetchProjectViews, fetchViewTasks } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
+const { initNotifications, rescheduleNotifications, stopNotifications, sendTestNotification } = require('./notifications');
+const { getForegroundProcessName, isObsidianForeground, getObsidianContext, testObsidianConnection } = require('./obsidian-client');
+const { getBrowserContext } = require('./browser-client');
+const { BROWSER_PROCESSES, getBrowserUrlFromWindow, prewarmUrlReader, shutdownUrlReader } = require('./window-url-reader');
+const { registerChromeHost, registerFirefoxHost, isRegistered } = require('./browser-host-registration');
 const {
   addPendingAction,
   removePendingAction,
@@ -81,6 +42,15 @@ const {
   updateStandaloneTask,
   clearStandaloneTasks,
 } = require('./cache');
+
+// Silently ignore EPIPE errors on stdout/stderr — happens when the
+// launching terminal closes but the tray app keeps running.
+for (const stream of [process.stdout, process.stderr]) {
+  stream?.on?.('error', (err) => {
+    if (err.code === 'EPIPE') return;
+    throw err;
+  });
+}
 
 // Ensure single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -168,13 +138,15 @@ function createSettingsWindow() {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 520,
-    height: 700,
+    width: 480,
+    height: 640,
     frame: true,
     transparent: false,
     alwaysOnTop: false,
     skipTaskbar: false,
-    resizable: false,
+    resizable: true,
+    minWidth: 420,
+    minHeight: 500,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'settings-preload.js'),
@@ -196,14 +168,40 @@ function createSettingsWindow() {
 
   settingsWindow.on('closed', () => {
     settingsWindow = null;
+    // Revert theme to saved config (reverts live preview if user cancelled)
+    nativeTheme.themeSource = (config && config.theme) || 'system';
     if (app.dock) {
       app.dock.hide();
     }
   });
 }
 
-function showWindow() {
+async function showWindow() {
   if (!mainWindow) return;
+
+  // 1. Obsidian detection (before showing window, while previous app still has focus)
+  let obsidianCtx = null;
+  if (config && config.obsidian_mode !== 'off' && config.obsidian_api_key && await isObsidianForeground()) {
+    obsidianCtx = await Promise.race([
+      getObsidianContext(config),
+      new Promise((resolve) => setTimeout(() => resolve(null), 350)),
+    ]);
+  }
+
+  // 2. Browser detection (only if Obsidian didn't match)
+  let browserCtx = null;
+  if (!obsidianCtx && config && config.browser_link_mode !== 'off') {
+    browserCtx = getBrowserContext(); // extension path (<1ms)
+    if (!browserCtx) {
+      const fgProcess = await getForegroundProcessName();
+      if (BROWSER_PROCESSES.has(fgProcess)) {
+        browserCtx = await Promise.race([
+          getBrowserUrlFromWindow(fgProcess),
+          new Promise((resolve) => setTimeout(() => resolve(null), 1500)),
+        ]);
+      }
+    }
+  }
 
   if (config && config.entry_position) {
     // Use saved position, but ensure it's on-screen
@@ -226,6 +224,16 @@ function showWindow() {
   mainWindow.show();
   mainWindow.focus();
   mainWindow.webContents.send('window-shown');
+
+  // Send context IPC after window-shown so resetInput() in the renderer
+  // doesn't immediately clear the context that was just set
+  if (obsidianCtx) {
+    mainWindow.webContents.send('obsidian-context', { ...obsidianCtx, mode: config.obsidian_mode });
+  }
+  if (!obsidianCtx && browserCtx) {
+    mainWindow.webContents.send('browser-context', { ...browserCtx, mode: config.browser_link_mode });
+  }
+
   startDragHoverPolling();
 
   // Opportunistically try to sync pending queue when user activates window
@@ -382,7 +390,9 @@ function toggleViewer() {
 }
 
 function createTrayIcon() {
-  const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'resources', 'icon.png')
+    : path.join(app.getAppPath(), 'assets', 'icon.png');
   try {
     const icon = nativeImage.createFromPath(iconPath);
     if (!icon.isEmpty()) {
@@ -637,6 +647,54 @@ function stopSyncTimer() {
   }
 }
 
+// --- View ID Cache (for position-based sorting) ---
+const viewIdCache = new Map();
+
+async function getListViewId(projectId) {
+  if (viewIdCache.has(projectId)) {
+    return viewIdCache.get(projectId);
+  }
+
+  const result = await fetchProjectViews(projectId);
+  if (!result.success || !Array.isArray(result.data)) {
+    return null;
+  }
+
+  // Find the "list" view — Vikunja creates one by default for every project
+  const listView = result.data.find((v) => v.view_kind === 'list') || result.data[0];
+  if (!listView) return null;
+
+  viewIdCache.set(projectId, listView.id);
+  return listView.id;
+}
+
+async function fetchTasksByPosition(filterParams) {
+  const projectIds = filterParams.project_ids;
+  if (!projectIds || projectIds.length === 0) {
+    return { success: false, error: 'Position sort requires specific projects to be selected' };
+  }
+
+  const allTasks = [];
+
+  for (const projectId of projectIds) {
+    const viewId = await getListViewId(projectId);
+    if (!viewId) continue;
+
+    const result = await fetchViewTasks(projectId, viewId, filterParams);
+    if (result.success && Array.isArray(result.data)) {
+      allTasks.push(...result.data);
+    } else if (result.error && !isRetriableError(result.error)) {
+      // Non-retriable error on a single project — skip it
+      continue;
+    } else if (result.error) {
+      // Retriable error — propagate so caller can fall back to cache
+      return result;
+    }
+  }
+
+  return { success: true, tasks: allTasks };
+}
+
 // --- Background Task Cache Refresh ---
 function buildFilterParams() {
   if (!config || !config.viewer_filter) return null;
@@ -670,7 +728,9 @@ async function refreshTaskCache() {
     const filterParams = buildFilterParams();
     if (!filterParams) return;
 
-    const result = await fetchTasks(filterParams);
+    const result = filterParams.sort_by === 'position'
+      ? await fetchTasksByPosition(filterParams)
+      : await fetchTasks(filterParams);
 
     if (result.success) {
       setCachedTasks(result.tasks);
@@ -832,6 +892,8 @@ ipcMain.handle('get-config', () => {
         secondary_projects: config.secondary_projects || [],
         project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
         standalone_mode: config.standalone_mode === true,
+        obsidian_mode: config.obsidian_mode || 'off',
+        browser_link_mode: config.browser_link_mode || 'off',
       }
     : null;
 });
@@ -839,6 +901,7 @@ ipcMain.handle('get-config', () => {
 ipcMain.handle('get-full-config', () => {
   return config
     ? {
+        platform: process.platform,
         vikunja_url: config.vikunja_url,
         api_token: config.api_token,
         default_project_id: config.default_project_id,
@@ -851,19 +914,46 @@ ipcMain.handle('get-full-config', () => {
         secondary_projects: config.secondary_projects || [],
         project_cycle_modifier: config.project_cycle_modifier || 'ctrl',
         standalone_mode: config.standalone_mode === true,
+        theme: config.theme || 'system',
+        // Notification settings
+        notifications_enabled: config.notifications_enabled,
+        notifications_persistent: config.notifications_persistent,
+        notifications_daily_reminder_enabled: config.notifications_daily_reminder_enabled,
+        notifications_daily_reminder_time: config.notifications_daily_reminder_time,
+        notifications_secondary_reminder_enabled: config.notifications_secondary_reminder_enabled,
+        notifications_secondary_reminder_time: config.notifications_secondary_reminder_time,
+        notifications_overdue_enabled: config.notifications_overdue_enabled,
+        notifications_due_today_enabled: config.notifications_due_today_enabled,
+        notifications_upcoming_enabled: config.notifications_upcoming_enabled,
+        notifications_sound: config.notifications_sound,
+        // Integration settings
+        obsidian_mode: config.obsidian_mode || 'off',
+        obsidian_api_key: config.obsidian_api_key || '',
+        obsidian_port: config.obsidian_port || 27124,
+        obsidian_vault_name: config.obsidian_vault_name || '',
+        browser_link_mode: config.browser_link_mode || 'off',
+        browser_extension_id: config.browser_extension_id || '',
       }
     : null;
+});
+
+ipcMain.handle('preview-theme', (_event, theme) => {
+  const valid = ['system', 'light', 'dark'];
+  nativeTheme.themeSource = valid.includes(theme) ? theme : 'system';
+});
+
+ipcMain.handle('test-notification', () => {
+  sendTestNotification();
 });
 
 ipcMain.handle('save-settings', async (_event, settings) => {
   try {
     const isStandalone = settings.standalone_mode === true;
 
-    // Validate required fields (relaxed in standalone mode)
-    if (!isStandalone) {
-      if (!settings.vikunja_url || !settings.api_token || !settings.default_project_id) {
-        return { success: false, error: 'URL, API token, and project are required.' };
-      }
+    // Validate required fields (relaxed in standalone mode and partial saves)
+    const hasServerFields = settings.vikunja_url && settings.api_token && settings.default_project_id;
+    if (!isStandalone && !settings.partial && !hasServerFields) {
+      return { success: false, error: 'URL, API token, and project are required.' };
     }
 
     const newConfig = {
@@ -885,6 +975,25 @@ ipcMain.handle('save-settings', async (_event, settings) => {
         include_today_all_projects: false,
       },
       secondary_projects: Array.isArray(settings.secondary_projects) ? settings.secondary_projects : [],
+      theme: settings.theme || 'system',
+      // Notification settings
+      notifications_enabled: settings.notifications_enabled === true,
+      notifications_persistent: settings.notifications_persistent === true,
+      notifications_daily_reminder_enabled: settings.notifications_daily_reminder_enabled !== false,
+      notifications_daily_reminder_time: settings.notifications_daily_reminder_time || '08:00',
+      notifications_secondary_reminder_enabled: settings.notifications_secondary_reminder_enabled === true,
+      notifications_secondary_reminder_time: settings.notifications_secondary_reminder_time || '16:00',
+      notifications_overdue_enabled: settings.notifications_overdue_enabled !== false,
+      notifications_due_today_enabled: settings.notifications_due_today_enabled !== false,
+      notifications_upcoming_enabled: settings.notifications_upcoming_enabled === true,
+      notifications_sound: settings.notifications_sound !== false,
+      // Integration settings
+      obsidian_mode: settings.obsidian_mode || 'off',
+      obsidian_api_key: settings.obsidian_api_key || '',
+      obsidian_port: settings.obsidian_port || 27124,
+      obsidian_vault_name: settings.obsidian_vault_name || '',
+      browser_link_mode: settings.browser_link_mode || 'off',
+      browser_extension_id: settings.browser_extension_id || '',
     };
 
     // Preserve window positions from existing config
@@ -900,6 +1009,12 @@ ipcMain.handle('save-settings', async (_event, settings) => {
 
     // Reload config
     config = getConfig();
+
+    // Apply saved theme
+    nativeTheme.themeSource = config.theme || 'system';
+
+    // Reschedule notifications with updated config
+    rescheduleNotifications();
 
     // Re-register hotkeys
     globalShortcut.unregisterAll();
@@ -938,7 +1053,7 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       // No sync in standalone mode
       stopSyncTimer();
       stopCacheRefresh();
-    } else {
+    } else if (hasServerFields) {
       // Ensure sync timer is running (may not be if this is first-time setup)
       startSyncTimer();
       stopCacheRefresh();       // restart with fresh config
@@ -958,6 +1073,159 @@ ipcMain.handle('fetch-projects', async (_event, url, token) => {
 ipcMain.handle('open-external', (_event, url) => {
   if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
     shell.openExternal(url);
+  }
+});
+
+// --- Deep link handler (obsidian:// and http(s)://) ---
+const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['https:', 'http:', 'obsidian:']);
+
+ipcMain.handle('open-deep-link', (_event, url) => {
+  if (typeof url !== 'string') return;
+  try {
+    const parsed = new URL(url);
+    if (ALLOWED_EXTERNAL_PROTOCOLS.has(parsed.protocol)) {
+      shell.openExternal(url);
+    }
+  } catch { /* invalid URL */ }
+});
+
+// --- Obsidian & Browser integration IPC ---
+ipcMain.handle('test-obsidian-connection', async (_event, apiKey, port) => {
+  return testObsidianConnection(apiKey || '', port || 27124);
+});
+
+ipcMain.handle('check-browser-host-registration', () => {
+  return isRegistered();
+});
+
+ipcMain.handle('register-browser-hosts', (_event, extensionId) => {
+  if (extensionId) registerChromeHost(extensionId);
+  registerFirefoxHost();
+  return isRegistered();
+});
+
+ipcMain.handle('open-browser-extension-folder', () => {
+  const extensionDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'extensions', 'browser')
+    : path.join(app.getAppPath(), 'extensions', 'browser');
+  const { existsSync } = require('fs');
+  if (existsSync(extensionDir)) {
+    shell.showItemInFolder(extensionDir);
+  }
+});
+
+ipcMain.handle('test-browser-bridge', () => {
+  const { existsSync, readFileSync, statSync } = require('fs');
+  const { execSync } = require('child_process');
+  const { getBridgePath, isRegistered: getBridgeRegistration } = require('./browser-host-registration');
+  const { getBrowserContext } = require('./browser-client');
+  const os = require('os');
+
+  const result = {};
+  const HOST_NAME = 'com.vikunja_quick_entry.browser';
+
+  // 1. Check native messaging host manifests
+  if (process.platform === 'darwin') {
+    const firefoxManifestPath = path.join(
+      os.homedir(),
+      'Library', 'Application Support', 'Mozilla', 'NativeMessagingHosts',
+      `${HOST_NAME}.json`
+    );
+    result.firefoxManifestPath = firefoxManifestPath;
+    result.firefoxManifestExists = existsSync(firefoxManifestPath);
+    if (result.firefoxManifestExists) {
+      try {
+        result.firefoxManifestContent = JSON.parse(readFileSync(firefoxManifestPath, 'utf-8'));
+      } catch (err) {
+        result.firefoxManifestError = err.message;
+      }
+    }
+
+    const chromeManifestPath = path.join(
+      os.homedir(),
+      'Library', 'Application Support', 'Google', 'Chrome', 'NativeMessagingHosts',
+      `${HOST_NAME}.json`
+    );
+    result.chromeManifestPath = chromeManifestPath;
+    result.chromeManifestExists = existsSync(chromeManifestPath);
+  }
+
+  // 2. Check shell wrapper / bat wrapper
+  const wrapperPath = process.platform === 'darwin'
+    ? path.join(app.getPath('userData'), 'vqe-bridge.sh')
+    : path.join(path.dirname(getBridgePath()), 'vqe-bridge.bat');
+  result.wrapperPath = wrapperPath;
+  result.wrapperExists = existsSync(wrapperPath);
+  if (result.wrapperExists && process.platform === 'darwin') {
+    try {
+      const stats = statSync(wrapperPath);
+      result.wrapperExecutable = !!(stats.mode & 0o111);
+    } catch { /* ignore */ }
+  }
+
+  // 3. Check bridge JS exists
+  const bridgePath = getBridgePath();
+  result.bridgePath = bridgePath;
+  result.bridgeExists = existsSync(bridgePath);
+
+  // 4. Check node availability
+  try {
+    const nodeVersion = execSync('node --version', { timeout: 3000 }).toString().trim();
+    result.nodeAvailable = true;
+    result.nodeVersion = nodeVersion;
+  } catch {
+    result.nodeAvailable = false;
+  }
+
+  // 5. Check browser-context.json status
+  const contextPath = path.join(app.getPath('userData'), 'browser-context.json');
+  result.contextPath = contextPath;
+  result.contextExists = existsSync(contextPath);
+  if (result.contextExists) {
+    try {
+      const raw = readFileSync(contextPath, 'utf-8');
+      const data = JSON.parse(raw);
+      result.contextData = data;
+      if (typeof data.timestamp === 'number') {
+        result.contextAge = `${Date.now() - data.timestamp}ms`;
+      }
+    } catch (err) {
+      result.contextError = err.message;
+    }
+  }
+
+  // 6. Live test: try reading browser context
+  const ctx = getBrowserContext();
+  result.liveContext = ctx;
+
+  return result;
+});
+
+ipcMain.handle('save-firefox-extension', async () => {
+  const { existsSync, copyFileSync } = require('fs');
+  const xpiName = 'vikunja-quick-entry-firefox-extension.xpi';
+  const xpiPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'extensions', 'browser', xpiName)
+    : path.join(app.getAppPath(), 'extensions', 'browser', xpiName);
+
+  if (!existsSync(xpiPath)) {
+    return { success: false, error: 'Extension file not found.' };
+  }
+
+  const result = await dialog.showSaveDialog(settingsWindow || null, {
+    defaultPath: xpiName,
+    filters: [{ name: 'Firefox Extension', extensions: ['xpi'] }],
+  });
+
+  if (result.canceled) {
+    return { success: false, canceled: true };
+  }
+
+  try {
+    copyFileSync(xpiPath, result.filePath);
+    return { success: true, path: result.filePath };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 });
 
@@ -981,7 +1249,9 @@ ipcMain.handle('fetch-viewer-tasks', async () => {
     return { success: false, error: 'No filter configuration' };
   }
 
-  const result = await fetchTasks(filterParams);
+  const result = filterParams.sort_by === 'position'
+    ? await fetchTasksByPosition(filterParams)
+    : await fetchTasks(filterParams);
 
   if (result.success) {
     // Cache the fresh task list for offline use
@@ -1225,12 +1495,19 @@ ipcMain.handle('upload-standalone-tasks', async (_event, url, token, projectId) 
 
 // --- App Lifecycle ---
 app.on('ready', async () => {
+  // Required for Windows toast notifications
+  app.setAppUserModelId('com.vikunja-quick-entry.app');
+
   // Hide dock icon on macOS (no-op on Windows, but good practice)
   if (app.dock) {
     app.dock.hide();
   }
 
   config = getConfig();
+
+  if (config) {
+    nativeTheme.themeSource = config.theme || 'system';
+  }
 
   createTray();
   if (!config || config.auto_check_updates) {
@@ -1247,6 +1524,14 @@ app.on('ready', async () => {
   createViewerWindow();
   registerShortcuts();
   app.setLoginItemSettings({ openAtLogin: config.launch_on_startup });
+
+  // Prewarm PowerShell URL reader for faster browser detection
+  if (process.platform === 'win32') {
+    prewarmUrlReader();
+  }
+
+  // Initialize notification scheduler (works in both server and standalone modes)
+  initNotifications(() => config, showViewer);
 
   if (!config.standalone_mode) {
     // Start background sync for offline queue (not needed in standalone mode)
@@ -1271,6 +1556,8 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   stopSyncTimer();
   stopCacheRefresh();
+  stopNotifications();
+  shutdownUrlReader();
   if (dragHoverTimer) {
     clearInterval(dragHoverTimer);
     dragHoverTimer = null;
