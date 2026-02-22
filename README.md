@@ -180,50 +180,7 @@ Most users should use the built-in Settings window (right-click tray icon > **Se
 - **Notifications** — enable/disable, reminder times, category toggles (overdue, due today, upcoming), sound, persistence
 - **Integrations** — Obsidian link mode + API key/vault/port, browser link mode + extension setup + bridge registration
 
-### Manual configuration
-
-For advanced use or automation, edit `config.json` directly:
-
-```json
-{
-  "standalone_mode": false,
-  "vikunja_url": "https://app.vikunja.cloud",
-  "api_token": "tk_your_api_token_here",
-  "default_project_id": 2,
-  "hotkey": "Alt+Shift+V",
-  "viewer_hotkey": "Alt+Shift+B",
-  "launch_on_startup": false,
-  "exclamation_today": true,
-  "auto_check_updates": true,
-  "theme": "system",
-  "project_cycle_modifier": "ctrl",
-  "secondary_projects": [],
-  "viewer_filter": {
-    "project_ids": [],
-    "sort_by": "due_date",
-    "order_by": "asc",
-    "due_date_filter": "all",
-    "include_today_all_projects": false
-  },
-  "notifications_enabled": false,
-  "notifications_daily_reminder_enabled": true,
-  "notifications_daily_reminder_time": "08:00",
-  "notifications_secondary_reminder_enabled": false,
-  "notifications_secondary_reminder_time": "16:00",
-  "notifications_overdue_enabled": true,
-  "notifications_due_today_enabled": true,
-  "notifications_upcoming_enabled": false,
-  "notifications_sound": true,
-  "notifications_persistent": false,
-  "obsidian_mode": "off",
-  "obsidian_api_key": "",
-  "obsidian_port": 27124,
-  "obsidian_vault_name": "",
-  "browser_link_mode": "off",
-  "browser_extension_id": ""
-}
-```
-
+For advanced use or automation, edit `config.json` directly.
 The app looks for `config.json` in two locations (checked in order):
 
 1. **Portable** — next to the executable / project root
@@ -255,18 +212,6 @@ Uses [Electron Accelerator](https://www.electronjs.org/docs/latest/api/accelerat
 | Tasks | Read All | Quick View, Notifications |
 | Tasks | Update | Quick View (complete/undo/schedule/edit) |
 | Projects | Read All | Settings (project list), Quick Entry (task creation requires project access) |
-
----
-
-## Roadmap
-
-~~V3: Offline caching~~ — Shipped
-
-~~V4: Standalone mode~~ — Shipped
-
-~~V5: Quick View enhancements (load all tasks, schedule today, inline descriptions)~~ — Shipped
-
-~~V6: Notifications, Obsidian & browser integration, theme selector~~ — Shipped
 
 ---
 
