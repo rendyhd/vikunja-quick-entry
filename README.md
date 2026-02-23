@@ -33,6 +33,9 @@ A second hotkey opens Quick View: a floating list of your upcoming tasks. See wh
 - Flexible filtering (select which projects and filter requirements)
 - Clickable task titles open in browser
 
+<img width="2260" height="1000" alt="screenshot quick" src="https://github.com/user-attachments/assets/418fc218-ae21-4b6c-b929-83284ca2bc73" />
+
+
 ### Obsidian integration
 
 When Obsidian is the foreground app, Quick Entry detects the active note and offers to attach a deep link to your task. The link is saved in the task description and shown in Quick View.
