@@ -108,12 +108,15 @@ api.tabs.onUpdated.addListener((tabId, changeInfo) => {
   }
 });
 
-// Track window focus changes
+// Track window focus changes — stop heartbeat when browser loses focus
+// so the context file stays cleared and doesn't leak into other apps.
 api.windows.onFocusChanged.addListener((windowId) => {
   if (windowId === api.windows.WINDOW_ID_NONE) {
+    stopHeartbeat();
     sendMessage({ type: 'clear' });
   } else {
     sendCurrentTab();
+    startHeartbeat();
   }
 });
 

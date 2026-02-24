@@ -179,27 +179,29 @@ function createSettingsWindow() {
 async function showWindow() {
   if (!mainWindow) return;
 
-  // 1. Obsidian detection (before showing window, while previous app still has focus)
+  // Detect foreground app first — used by both Obsidian and browser detection.
+  // Done before showing window, while the previous app still has focus.
+  const fgProcess = await getForegroundProcessName();
+
+  // 1. Obsidian detection
   let obsidianCtx = null;
-  if (config && config.obsidian_mode !== 'off' && config.obsidian_api_key && await isObsidianForeground()) {
+  if (config && config.obsidian_mode !== 'off' && config.obsidian_api_key &&
+      (fgProcess === 'Obsidian' || fgProcess === 'obsidian')) {
     obsidianCtx = await Promise.race([
       getObsidianContext(config),
       new Promise((resolve) => setTimeout(() => resolve(null), 350)),
     ]);
   }
 
-  // 2. Browser detection (only if Obsidian didn't match)
+  // 2. Browser detection (only if Obsidian didn't match and foreground IS a browser)
   let browserCtx = null;
-  if (!obsidianCtx && config && config.browser_link_mode !== 'off') {
+  if (!obsidianCtx && config && config.browser_link_mode !== 'off' && BROWSER_PROCESSES.has(fgProcess)) {
     browserCtx = getBrowserContext(); // extension path (<1ms)
     if (!browserCtx) {
-      const fgProcess = await getForegroundProcessName();
-      if (BROWSER_PROCESSES.has(fgProcess)) {
-        browserCtx = await Promise.race([
-          getBrowserUrlFromWindow(fgProcess),
-          new Promise((resolve) => setTimeout(() => resolve(null), 1500)),
-        ]);
-      }
+      browserCtx = await Promise.race([
+        getBrowserUrlFromWindow(fgProcess),
+        new Promise((resolve) => setTimeout(() => resolve(null), 1500)),
+      ]);
     }
   }
 
