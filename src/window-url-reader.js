@@ -88,7 +88,7 @@ function getBrowserUrlMacOS(appName) {
 }
 
 // --- Main entry point: platform-aware URL detection ---
-function getBrowserUrlFromWindow(processName) {
+function getBrowserUrlFromWindow(processName, hwnd) {
   if (process.platform === 'darwin') {
     return getBrowserUrlMacOS(processName);
   }
@@ -97,13 +97,15 @@ function getBrowserUrlFromWindow(processName) {
   return new Promise((resolve) => {
     try {
       const scriptPath = getScriptPath();
-      const child = spawn('powershell.exe', [
+      const args = [
         '-NoProfile',
         '-NonInteractive',
         '-ExecutionPolicy', 'Bypass',
         '-File', scriptPath,
-        '-ProcessName', processName
-      ], {
+        '-ProcessName', processName,
+        ...(hwnd ? ['-Hwnd', String(hwnd)] : []),
+      ];
+      const child = spawn('powershell.exe', args, {
         stdio: ['ignore', 'pipe', 'ignore'],
         windowsHide: true
       });

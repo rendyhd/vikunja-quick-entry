@@ -4,3 +4,4 @@ dist/
 config.json
 *.log
 nul
+src/renderer/renderer.js

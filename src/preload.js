@@ -1,10 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
-  saveTask: (title, description, dueDate, projectId) => ipcRenderer.invoke('save-task', title, description, dueDate, projectId),
+  saveTask: (title, description, dueDate, projectId, priority, repeatAfter, repeatMode) => ipcRenderer.invoke('save-task', title, description, dueDate, projectId, priority, repeatAfter, repeatMode),
   closeWindow: () => ipcRenderer.invoke('close-window'),
   getConfig: () => ipcRenderer.invoke('get-config'),
   getPendingCount: () => ipcRenderer.invoke('get-pending-count'),
+  fetchLabels: () => ipcRenderer.invoke('fetch-labels'),
+  fetchProjects: () => ipcRenderer.invoke('fetch-projects-for-renderer'),
+  addLabelToTask: (taskId, labelId) => ipcRenderer.invoke('add-label-to-task', taskId, labelId),
   onShowWindow: (callback) => {
     ipcRenderer.on('window-shown', callback);
   },

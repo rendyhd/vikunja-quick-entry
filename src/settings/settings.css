@@ -648,6 +648,50 @@ h1 {
   background: #fff0f0;
 }
 
+/* NLP syntax mode cards */
+.nlp-settings {
+  margin-top: 4px;
+  padding-left: 4px;
+}
+
+.syntax-cards {
+  display: flex;
+  gap: 10px;
+}
+
+.syntax-card {
+  flex: 1;
+  cursor: pointer;
+}
+
+.syntax-card input[type="radio"] {
+  display: none;
+}
+
+.syntax-card-content {
+  padding: 10px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  transition: border-color 150ms ease;
+}
+
+.syntax-card input[type="radio"]:checked + .syntax-card-content {
+  border-color: #4a9eff;
+  background: rgba(74, 158, 255, 0.04);
+}
+
+.syntax-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.syntax-card-example {
+  font-size: 12px;
+  color: #666;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   html, body {
@@ -890,5 +934,18 @@ h1 {
     background: #2a2a2a;
     border-color: #444;
     color: #ccc;
+  }
+
+  .syntax-card-content {
+    border-color: #444;
+  }
+
+  .syntax-card input[type="radio"]:checked + .syntax-card-content {
+    border-color: #4a9eff;
+    background: rgba(74, 158, 255, 0.08);
+  }
+
+  .syntax-card-example {
+    color: #999;
   }
 }

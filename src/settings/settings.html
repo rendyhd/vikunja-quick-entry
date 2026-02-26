@@ -128,6 +128,35 @@
         </label>
       </div>
 
+      <div class="form-group checkbox-group">
+        <label>
+          <input id="nlp-enabled" type="checkbox" checked />
+          <span>Smart parsing (dates, priority, labels, projects)</span>
+        </label>
+      </div>
+
+      <div id="nlp-settings" class="nlp-settings">
+        <div class="form-group">
+          <label>Syntax mode</label>
+          <div class="syntax-cards">
+            <label class="syntax-card">
+              <input type="radio" name="nlp-syntax-mode" value="todoist" checked />
+              <div class="syntax-card-content">
+                <div class="syntax-card-title">Todoist</div>
+                <div class="syntax-card-example">@label #project p1-p4</div>
+              </div>
+            </label>
+            <label class="syntax-card">
+              <input type="radio" name="nlp-syntax-mode" value="vikunja" />
+              <div class="syntax-card-content">
+                <div class="syntax-card-title">Vikunja</div>
+                <div class="syntax-card-example">*label +project !1-!4</div>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div class="shortcuts-help">
         <div class="shortcuts-title">Keyboard Shortcuts</div>
         <div class="shortcut-row"><kbd>Enter</kbd><span>Save task</span></div>

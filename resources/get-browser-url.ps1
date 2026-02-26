@@ -1,5 +1,6 @@
 param(
-    [string]$ProcessName
+    [string]$ProcessName,
+    [string]$Hwnd
 )
 
 # Immediately capture the foreground window handle before any .NET loading
@@ -20,15 +21,20 @@ public class Win32 {
 }
 "@
 
-$hwnd = [Win32]::GetForegroundWindow()
-if ($hwnd -eq [IntPtr]::Zero) { exit 0 }
+# Use pre-captured HWND if provided, otherwise capture now
+if ($Hwnd) {
+    $winHandle = [IntPtr]::new([long]$Hwnd)
+} else {
+    $winHandle = [Win32]::GetForegroundWindow()
+}
+if ($winHandle -eq [IntPtr]::Zero) { exit 0 }
 
 # Get window title
-$titleLen = [Win32]::GetWindowTextLength($hwnd)
+$titleLen = [Win32]::GetWindowTextLength($winHandle)
 $title = ""
 if ($titleLen -gt 0) {
     $sb = New-Object System.Text.StringBuilder($titleLen + 1)
-    [void][Win32]::GetWindowText($hwnd, $sb, $sb.Capacity)
+    [void][Win32]::GetWindowText($winHandle, $sb, $sb.Capacity)
     $title = $sb.ToString()
 }
 
@@ -42,7 +48,7 @@ try {
 
 # Get the automation element from the captured HWND
 try {
-    $element = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+    $element = [System.Windows.Automation.AutomationElement]::FromHandle($winHandle)
 } catch {
     exit 0
 }

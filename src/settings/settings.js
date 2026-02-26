@@ -12,6 +12,8 @@ const autoCheckUpdates = document.getElementById('auto-check-updates');
 const hotkeyDisplay = document.getElementById('hotkey-display');
 const recordHotkeyBtn = document.getElementById('record-hotkey');
 const exclamationToday = document.getElementById('exclamation-today');
+const nlpEnabled = document.getElementById('nlp-enabled');
+const nlpSettings = document.getElementById('nlp-settings');
 const secondaryProjectsList = document.getElementById('secondary-projects-list');
 const addSecondarySelect = document.getElementById('add-secondary-project');
 const addSecondaryBtn = document.getElementById('add-secondary-btn');
@@ -227,6 +229,16 @@ function updateStandaloneUI(isStandalone) {
   // Hide upload dialog when toggling
   uploadDialog.hidden = true;
 }
+
+// --- NLP settings toggle ---
+nlpEnabled.addEventListener('change', () => {
+  nlpSettings.style.display = nlpEnabled.checked ? '' : 'none';
+});
+
+// Syntax mode radio auto-save
+document.querySelectorAll('input[name="nlp-syntax-mode"]').forEach((radio) => {
+  radio.addEventListener('change', () => immediateAutoSave());
+});
 
 standaloneMode.addEventListener('change', async () => {
   const isStandalone = standaloneMode.checked;
@@ -500,6 +512,12 @@ async function loadExistingConfig() {
   launchStartup.checked = config.launch_on_startup === true;
   exclamationToday.checked = config.exclamation_today !== false;
   autoCheckUpdates.checked = config.auto_check_updates !== false;
+
+  // NLP parser
+  nlpEnabled.checked = config.nlp_enabled !== false;
+  nlpSettings.style.display = nlpEnabled.checked ? '' : 'none';
+  const syntaxRadio = document.querySelector(`input[name="nlp-syntax-mode"][value="${config.nlp_syntax_mode || 'todoist'}"]`);
+  if (syntaxRadio) syntaxRadio.checked = true;
 
   // Project cycle modifier
   projectCycleModifier.value = config.project_cycle_modifier || 'ctrl';
@@ -990,6 +1008,8 @@ function gatherSettings(overrides = {}) {
     launch_on_startup: launchStartup.checked,
     exclamation_today: exclamationToday.checked,
     auto_check_updates: autoCheckUpdates.checked,
+    nlp_enabled: nlpEnabled.checked,
+    nlp_syntax_mode: (document.querySelector('input[name="nlp-syntax-mode"]:checked') || {}).value || 'todoist',
     project_cycle_modifier: projectCycleModifier.value || 'ctrl',
     viewer_hotkey: viewerHotkeyDisplay.value || 'Alt+Shift+B',
     theme: themeSelect.value || 'system',

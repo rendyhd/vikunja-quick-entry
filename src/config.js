@@ -89,6 +89,9 @@ function getConfig() {
     obsidian_api_key: config.obsidian_api_key || '',
     obsidian_port: config.obsidian_port || 27124,
     obsidian_vault_name: config.obsidian_vault_name || '',
+    // NLP parser
+    nlp_enabled: config.nlp_enabled !== false,
+    nlp_syntax_mode: config.nlp_syntax_mode || 'todoist',
     // Browser integration
     browser_link_mode: config.browser_link_mode || 'off',
     browser_extension_id: config.browser_extension_id || '',

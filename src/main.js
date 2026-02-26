@@ -14,11 +14,11 @@ const {
 } = require('electron');
 const path = require('path');
 const { getConfig, saveConfig } = require('./config');
-const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate, updateTask, fetchProjectViews, fetchViewTasks } = require('./api');
+const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate, updateTask, fetchProjectViews, fetchViewTasks, fetchLabels, addLabelToTask } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
 const { initNotifications, rescheduleNotifications, stopNotifications, sendTestNotification } = require('./notifications');
-const { getForegroundProcessName, isObsidianForeground, getObsidianContext, testObsidianConnection } = require('./obsidian-client');
+const { getForegroundProcessName, getForegroundWindowHandle, isObsidianForeground, getObsidianContext, testObsidianConnection } = require('./obsidian-client');
 const { getBrowserContext } = require('./browser-client');
 const { BROWSER_PROCESSES, getBrowserUrlFromWindow, prewarmUrlReader, shutdownUrlReader } = require('./window-url-reader');
 const { registerChromeHost, registerFirefoxHost, isRegistered } = require('./browser-host-registration');
@@ -183,6 +183,10 @@ async function showWindow() {
   // Done before showing window, while the previous app still has focus.
   const fgProcess = await getForegroundProcessName();
 
+  // Capture foreground window handle BEFORE showing our window (steals focus).
+  // Passed to the PowerShell URL reader so it targets the correct window.
+  const fgHwnd = getForegroundWindowHandle();
+
   // 1. Obsidian detection
   let obsidianCtx = null;
   if (config && config.obsidian_mode !== 'off' && config.obsidian_api_key &&
@@ -199,7 +203,7 @@ async function showWindow() {
     browserCtx = getBrowserContext(); // extension path (<1ms)
     if (!browserCtx) {
       browserCtx = await Promise.race([
-        getBrowserUrlFromWindow(fgProcess),
+        getBrowserUrlFromWindow(fgProcess, fgHwnd),
         new Promise((resolve) => setTimeout(() => resolve(null), 1500)),
       ]);
     }
@@ -839,7 +843,7 @@ function setupNetworkListeners() {
 }
 
 // --- IPC Handlers ---
-ipcMain.handle('save-task', async (_event, title, description, dueDate, projectId) => {
+ipcMain.handle('save-task', async (_event, title, description, dueDate, projectId, priority, repeatAfter, repeatMode) => {
   // Standalone mode: store locally, no API calls
   if (config && config.standalone_mode) {
     const task = addStandaloneTask(title, description || null, dueDate || null);
@@ -852,7 +856,7 @@ ipcMain.handle('save-task', async (_event, title, description, dueDate, projectI
     return { success: true, task };
   }
 
-  const result = await createTask(title, description, dueDate, projectId);
+  const result = await createTask(title, description, dueDate, projectId, priority, repeatAfter, repeatMode);
 
   if (result.success) {
     // Notify viewer to invalidate stale cache
@@ -896,6 +900,8 @@ ipcMain.handle('get-config', () => {
         standalone_mode: config.standalone_mode === true,
         obsidian_mode: config.obsidian_mode || 'off',
         browser_link_mode: config.browser_link_mode || 'off',
+        nlp_enabled: config.nlp_enabled !== false,
+        nlp_syntax_mode: config.nlp_syntax_mode || 'todoist',
       }
     : null;
 });
@@ -1070,6 +1076,27 @@ ipcMain.handle('save-settings', async (_event, settings) => {
 
 ipcMain.handle('fetch-projects', async (_event, url, token) => {
   return fetchProjects(url, token);
+});
+
+ipcMain.handle('fetch-labels', async () => {
+  if (!config || config.standalone_mode) {
+    return { success: true, labels: [] };
+  }
+  return fetchLabels();
+});
+
+ipcMain.handle('fetch-projects-for-renderer', async () => {
+  if (!config || config.standalone_mode) {
+    return { success: true, projects: [] };
+  }
+  return fetchProjects(config.vikunja_url, config.api_token);
+});
+
+ipcMain.handle('add-label-to-task', async (_event, taskId, labelId) => {
+  if (!config || config.standalone_mode) {
+    return { success: false, error: 'Not available in standalone mode' };
+  }
+  return addLabelToTask(taskId, labelId);
 });
 
 ipcMain.handle('open-external', (_event, url) => {

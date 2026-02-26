@@ -4,7 +4,11 @@
   "description": "A lightweight system tray app with a global hotkey for quick task entry to Vikunja",
   "main": "src/main.js",
   "scripts": {
+    "build:renderer": "node build-renderer.js",
+    "prestart": "npm run build:renderer",
     "start": "electron .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "dist": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
     "dist:publish": "electron-builder --win --publish never"
@@ -14,9 +18,12 @@
   "devDependencies": {
     "@electron/fuses": "^1.8.0",
     "electron": "^40.0.0",
-    "electron-builder": "^26.0.0"
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.27.3",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
+    "chrono-node": "^2.9.0",
     "koffi": "^2.15.1"
   }
 }

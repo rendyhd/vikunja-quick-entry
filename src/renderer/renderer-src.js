@@ -1,4 +1,10 @@
+import { parse, getParserConfig, recurrenceToVikunja, extractBangToday } from '../lib/task-parser/index.ts';
+import { AutocompleteDropdown } from './autocomplete.js';
+import { cache } from './vikunja-cache.js';
+
 const input = document.getElementById('task-input');
+const inputHighlight = document.getElementById('input-highlight');
+const parsePreview = document.getElementById('parse-preview');
 const descriptionHint = document.getElementById('description-hint');
 const descriptionInput = document.getElementById('description-input');
 const container = document.getElementById('container');
@@ -30,6 +36,27 @@ let obsidianContext = null;  // { deepLink, noteName, vaultName, mode }
 let obsidianLinked = false;
 let browserContext = null;   // { url, title, displayTitle, mode }
 let browserLinked = false;
+
+// NLP state
+let parserConfig = null;
+let cachedLabels = [];       // [{id, title}, ...]
+let cachedProjects = [];     // [{id, title}, ...]
+let lastParseResult = null;
+let suppressedTypes = new Map(); // tokenType → raw text of suppressed token
+let isComposing = false;
+
+// Autocomplete dropdown
+const autocomplete = new AutocompleteDropdown('autocomplete-container', (item, triggerStart, prefix) => {
+  const val = input.value;
+  // Check if title needs quoting (contains spaces or special chars)
+  const needsQuote = item.title.includes(' ');
+  const replacement = needsQuote ? `${prefix}"${item.title}" ` : `${prefix}${item.title} `;
+  input.value = val.substring(0, triggerStart) + replacement + val.substring(input.selectionStart);
+  const cursorPos = triggerStart + replacement.length;
+  input.setSelectionRange(cursorPos, cursorPos);
+  input.focus();
+  handleInputChange();
+});
 
 function showError(msg) {
   errorMessage.textContent = msg;
@@ -92,6 +119,13 @@ function isDescriptionExpanded() {
 }
 
 function updateTodayHints() {
+  // When NLP parser is enabled, suppress legacy ! hints — parser handles dates
+  if (parserConfig && parserConfig.enabled) {
+    todayHintInline.classList.add('hidden');
+    todayHintBelow.classList.add('hidden');
+    return;
+  }
+
   const hasExclamation = exclamationTodayEnabled && input.value.includes('!');
 
   if (hasExclamation && !isDescriptionExpanded()) {
@@ -118,6 +152,11 @@ async function updatePendingIndicator() {
 
 function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeHighlightText(text) {
+  // Escape HTML and replace spaces with non-breaking spaces to match input rendering
+  return escapeHtml(text).replace(/ /g, '\u00a0');
 }
 
 function buildNoteLinkHtml(deepLink, noteName) {
@@ -186,6 +225,14 @@ function resetContextState() {
   browserBadge.classList.add('hidden');
 }
 
+function clearNlpState() {
+  inputHighlight.innerHTML = '';
+  parsePreview.innerHTML = '';
+  parsePreview.classList.add('hidden');
+  lastParseResult = null;
+  suppressedTypes = new Map();
+}
+
 function resetInput() {
   input.value = '';
   input.disabled = false;
@@ -197,6 +244,8 @@ function resetInput() {
   currentProjectIndex = 0;
   updateProjectHint();
   resetContextState();
+  clearNlpState();
+  autocomplete.hide();
   input.focus();
 }
 
@@ -240,6 +289,152 @@ function isProjectCycleModifierPressed(e) {
   }
 }
 
+// --- NLP rendering functions ---
+
+function renderHighlights(inputValue, tokens) {
+  if (!tokens || tokens.length === 0) {
+    inputHighlight.innerHTML = escapeHighlightText(inputValue);
+    return;
+  }
+
+  // Sort tokens by start position
+  const sorted = [...tokens].sort((a, b) => a.start - b.start);
+  let html = '';
+  let pos = 0;
+
+  for (const token of sorted) {
+    // Text before this token
+    if (token.start > pos) {
+      html += escapeHighlightText(inputValue.slice(pos, token.start));
+    }
+    // Token itself
+    html += `<span class="token-${token.type}">${escapeHighlightText(inputValue.slice(token.start, token.end))}</span>`;
+    pos = token.end;
+  }
+
+  // Remaining text after last token
+  if (pos < inputValue.length) {
+    html += escapeHighlightText(inputValue.slice(pos));
+  }
+
+  inputHighlight.innerHTML = html;
+}
+
+function formatDateLabel(date) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((target - today) / 86400000);
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  if (diffDays === -1) return 'Yesterday';
+  if (diffDays > 1 && diffDays <= 6) {
+    return date.toLocaleDateString(undefined, { weekday: 'long' });
+  }
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+const PRIORITY_NAMES = { 1: 'Low', 2: 'Medium', 3: 'High', 4: 'Urgent' };
+
+function renderParsePreview(result) {
+  if (!result) {
+    parsePreview.innerHTML = '';
+    parsePreview.classList.add('hidden');
+    return;
+  }
+
+  const chips = [];
+
+  if (result.dueDate && !suppressedTypes.has('date')) {
+    chips.push(`<span class="parse-chip parse-chip-date">${escapeHtml(formatDateLabel(result.dueDate))}<button class="parse-chip-dismiss" data-type="date">&times;</button></span>`);
+  }
+
+  if (result.priority != null && !suppressedTypes.has('priority')) {
+    const name = PRIORITY_NAMES[result.priority] || `P${result.priority}`;
+    chips.push(`<span class="parse-chip parse-chip-priority">${escapeHtml(name)}<button class="parse-chip-dismiss" data-type="priority">&times;</button></span>`);
+  }
+
+  for (const label of result.labels) {
+    if (!suppressedTypes.has('label')) {
+      chips.push(`<span class="parse-chip parse-chip-label">${escapeHtml(label)}<button class="parse-chip-dismiss" data-type="label">&times;</button></span>`);
+    }
+  }
+
+  if (result.project && !suppressedTypes.has('project')) {
+    chips.push(`<span class="parse-chip parse-chip-project">${escapeHtml(result.project)}<button class="parse-chip-dismiss" data-type="project">&times;</button></span>`);
+  }
+
+  if (result.recurrence && !suppressedTypes.has('recurrence')) {
+    const r = result.recurrence;
+    const label = r.interval === 1 ? `Every ${r.unit}` : `Every ${r.interval} ${r.unit}s`;
+    chips.push(`<span class="parse-chip parse-chip-recurrence">${escapeHtml(label)}<button class="parse-chip-dismiss" data-type="recurrence">&times;</button></span>`);
+  }
+
+  if (chips.length > 0) {
+    parsePreview.innerHTML = chips.join('');
+    parsePreview.classList.remove('hidden');
+  } else {
+    parsePreview.innerHTML = '';
+    parsePreview.classList.add('hidden');
+  }
+}
+
+function handleInputChange() {
+  const val = input.value;
+
+  if (!parserConfig || !parserConfig.enabled) {
+    inputHighlight.innerHTML = '';
+    parsePreview.innerHTML = '';
+    parsePreview.classList.add('hidden');
+    updateTodayHints();
+    return;
+  }
+
+  // Build suppress list from dismissed chips
+  const suppressTypes = [...suppressedTypes.keys()];
+
+  const config = {
+    ...parserConfig,
+    suppressTypes,
+  };
+
+  const result = parse(val, config);
+  lastParseResult = result;
+
+  // Filter tokens to only show non-suppressed ones
+  const visibleTokens = result.tokens.filter(t => !suppressedTypes.has(t.type));
+  renderHighlights(val, visibleTokens);
+  renderParsePreview(result);
+
+  // Update autocomplete
+  autocomplete.update(val, input.selectionStart);
+}
+
+async function refreshLabelsAndProjects() {
+  try {
+    const [labelsResult, projectsResult] = await Promise.all([
+      window.api.fetchLabels(),
+      window.api.fetchProjects(),
+    ]);
+
+    if (labelsResult && labelsResult.success) {
+      cachedLabels = labelsResult.labels || [];
+      cache.setLabels(cachedLabels);
+    }
+
+    if (projectsResult && projectsResult.success) {
+      cachedProjects = (projectsResult.projects || []).map(p => ({
+        id: p.id,
+        title: p.title,
+      }));
+      cache.setProjects(cachedProjects);
+    }
+  } catch {
+    // Silently fail — autocomplete just won't have data
+  }
+}
+
 async function saveTask() {
   let title = input.value.trim();
   if (!title) return;
@@ -256,24 +451,78 @@ async function saveTask() {
   }
 
   let dueDate = null;
-  if (exclamationTodayEnabled && title.includes('!')) {
-    title = title.replace(/!/g, '').trim();
-    if (!title) return;
-    const today = new Date();
-    today.setHours(23, 59, 59, 0);
-    dueDate = today.toISOString();
+  let priority = null;
+  let repeatAfter = null;
+  let repeatMode = null;
+  let taskProjectId = null;
+
+  if (parserConfig && parserConfig.enabled && lastParseResult) {
+    // Use parsed values
+    title = lastParseResult.title || title;
+
+    if (lastParseResult.dueDate && !suppressedTypes.has('date')) {
+      const d = new Date(lastParseResult.dueDate);
+      d.setHours(23, 59, 59, 0);
+      dueDate = d.toISOString();
+    }
+
+    if (lastParseResult.priority != null && !suppressedTypes.has('priority')) {
+      priority = lastParseResult.priority;
+    }
+
+    if (lastParseResult.recurrence && !suppressedTypes.has('recurrence')) {
+      const vik = recurrenceToVikunja(lastParseResult.recurrence);
+      repeatAfter = vik.repeat_after;
+      repeatMode = vik.repeat_mode;
+    }
+
+    if (lastParseResult.project && !suppressedTypes.has('project')) {
+      // Resolve project name to ID
+      const match = cachedProjects.find(
+        p => p.title.toLowerCase() === lastParseResult.project.toLowerCase()
+      );
+      if (match) {
+        taskProjectId = match.id;
+      }
+    }
+  } else {
+    // Legacy ! → today behavior
+    if (exclamationTodayEnabled && title.includes('!')) {
+      const bang = extractBangToday(title);
+      if (bang.dueDate) {
+        title = bang.title;
+        if (!title) return;
+        const today = new Date();
+        today.setHours(23, 59, 59, 0);
+        dueDate = today.toISOString();
+      }
+    }
   }
+
+  if (!title.trim()) return;
 
   input.disabled = true;
   descriptionInput.disabled = true;
   clearError();
 
-  const projectId = projectCycle.length > 0 ? projectCycle[currentProjectIndex].id : null;
-  const result = await window.api.saveTask(title, description, dueDate, projectId);
+  const projectId = taskProjectId || (projectCycle.length > 0 ? projectCycle[currentProjectIndex].id : null);
+  const result = await window.api.saveTask(title, description, dueDate, projectId, priority, repeatAfter, repeatMode);
 
   if (result.success) {
+    // Attach labels if parser found any
+    if (parserConfig && parserConfig.enabled && lastParseResult && result.task && result.task.id) {
+      const labelNames = (lastParseResult.labels || []).filter(() => !suppressedTypes.has('label'));
+      for (const labelName of labelNames) {
+        const match = cachedLabels.find(
+          l => l.title.toLowerCase() === labelName.toLowerCase()
+        );
+        if (match) {
+          await window.api.addLabelToTask(result.task.id, match.id);
+        }
+      }
+    }
+
     if (result.cached) {
-      // Task saved to offline cache — show brief indicator then close
       showOfflineMessage();
     } else {
       window.api.closeWindow();
@@ -303,7 +552,15 @@ window.api.onShowWindow(async () => {
     exclamationTodayEnabled = cfg.exclamation_today !== false;
     projectCycleModifier = cfg.project_cycle_modifier || 'ctrl';
     buildProjectCycle(cfg);
+
+    // Load NLP parser config
+    parserConfig = getParserConfig(cfg);
+    autocomplete.setSyntaxMode(parserConfig.syntaxMode);
+    autocomplete.setEnabled(parserConfig.enabled);
   }
+
+  // Refresh labels and projects for autocomplete
+  refreshLabelsAndProjects();
 
   // Update pending sync indicator
   await updatePendingIndicator();
@@ -357,6 +614,9 @@ window.api.onBrowserContext((context) => {
 
 // Keyboard handling on title input
 input.addEventListener('keydown', async (e) => {
+  // Let autocomplete handle navigation keys first
+  if (autocomplete.handleKeyDown(e)) return;
+
   if (isProjectCycleModifierPressed(e) && e.key === 'ArrowRight') {
     e.preventDefault();
     cycleProject(1);
@@ -426,9 +686,54 @@ descriptionInput.addEventListener('keydown', async (e) => {
   // Shift+Enter = default newline behavior in textarea
 });
 
-// Detect ! in task title to show today scheduling hint
+// Input change handler for NLP parsing
 input.addEventListener('input', () => {
+  if (isComposing) return;
+
+  // Check if any suppressed token text was edited — lift that suppression
+  if (lastParseResult && suppressedTypes.size > 0) {
+    const val = input.value;
+    for (const [type, raw] of suppressedTypes.entries()) {
+      if (!val.includes(raw)) {
+        suppressedTypes.delete(type);
+      }
+    }
+  }
+
+  handleInputChange();
   updateTodayHints();
+});
+
+// IME composition guards
+input.addEventListener('compositionstart', () => { isComposing = true; });
+input.addEventListener('compositionend', () => {
+  isComposing = false;
+  handleInputChange();
+});
+
+// Parse preview chip dismiss handler (event delegation)
+parsePreview.addEventListener('click', (e) => {
+  const btn = e.target.closest('.parse-chip-dismiss');
+  if (!btn) return;
+  const type = btn.dataset.type;
+  if (!type) return;
+
+  // Find the raw text of the token being suppressed
+  if (lastParseResult) {
+    const token = lastParseResult.tokens.find(t => t.type === type);
+    if (token) {
+      suppressedTypes.set(type, token.raw);
+    }
+  }
+
+  // Re-run parse with updated suppressions
+  handleInputChange();
+  input.focus();
+});
+
+// Sync highlight scroll with input scroll
+input.addEventListener('scroll', () => {
+  inputHighlight.scrollLeft = input.scrollLeft;
 });
 
 // Load config to check exclamation_today setting and build project cycle
@@ -438,6 +743,14 @@ async function loadConfig() {
     exclamationTodayEnabled = cfg.exclamation_today !== false;
     projectCycleModifier = cfg.project_cycle_modifier || 'ctrl';
     buildProjectCycle(cfg);
+
+    // Load NLP parser config
+    parserConfig = getParserConfig(cfg);
+    autocomplete.setSyntaxMode(parserConfig.syntaxMode);
+    autocomplete.setEnabled(parserConfig.enabled);
+
+    // Pre-fetch labels and projects
+    refreshLabelsAndProjects();
   }
   // Show pending count on initial load
   await updatePendingIndicator();

@@ -219,6 +219,18 @@ function getForegroundProcessNameSync() {
   }
 }
 
+// Capture the foreground window handle before our window steals focus.
+// Used by browser URL reader to target the correct window via hwnd.
+function getForegroundWindowHandle() {
+  if (!loadForegroundCheck()) return 0;
+  try {
+    const koffi = require('koffi');
+    const hwnd = _GetForegroundWindow();
+    if (!hwnd) return 0;
+    return koffi.address(hwnd) || 0;
+  } catch { return 0; }
+}
+
 // Async on all platforms — Windows wraps sync koffi (~1μs), macOS uses osascript (~50ms)
 async function getForegroundProcessName() {
   if (process.platform === 'win32') {
@@ -291,6 +303,7 @@ async function getObsidianContext(config) {
 
 module.exports = {
   getForegroundProcessName,
+  getForegroundWindowHandle,
   isObsidianForeground,
   getActiveNote,
   injectUID,
