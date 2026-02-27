@@ -81,6 +81,8 @@ const CACHE_REFRESH_BASE_INTERVAL = 30000;  // 30s
 const CACHE_REFRESH_MAX_INTERVAL = 300000;  // 5min cap
 const CACHE_REFRESH_BACKOFF_FACTOR = 2;
 const CACHE_REFRESH_JITTER = 0.25;          // +/-25%
+let lastAuthNotificationTime = 0;
+const AUTH_NOTIFICATION_COOLDOWN = 3600000; // 1 hour
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -558,6 +560,22 @@ function registerShortcuts() {
   return allOk;
 }
 
+// --- Auth Error Notification (rate-limited) ---
+function showAuthErrorNotification(errorMsg) {
+  const now = Date.now();
+  if (now - lastAuthNotificationTime < AUTH_NOTIFICATION_COOLDOWN) return;
+  lastAuthNotificationTime = now;
+
+  const n = new Notification({
+    title: 'Vikunja \u2014 Connection Error',
+    body: errorMsg || 'API token is invalid or expired. Open Settings to update it.',
+  });
+  n.on('click', () => {
+    createSettingsWindow();
+  });
+  n.show();
+}
+
 // --- Offline Sync Processor ---
 async function processPendingQueue() {
   if (isSyncing) return;
@@ -603,6 +621,7 @@ async function processPendingQueue() {
         syncedAny = true;
       } else if (result.error && isAuthError(result.error)) {
         // Auth error — stop processing but keep actions (user needs to fix token)
+        showAuthErrorNotification(result.error);
         break;
       } else if (result.error && isRetriableError(result.error)) {
         // Network still down — stop processing, retry later
@@ -741,6 +760,8 @@ async function refreshTaskCache() {
     if (result.success) {
       setCachedTasks(result.tasks);
       cacheRefreshBackoff = CACHE_REFRESH_BASE_INTERVAL; // reset on success
+    } else if (result.error && isAuthError(result.error)) {
+      showAuthErrorNotification(result.error);
     } else if (isRetriableError(result.error)) {
       // Exponential backoff: 30s → 60s → 120s → 240s → 300s cap
       cacheRefreshBackoff = Math.min(

@@ -2,6 +2,8 @@
 const urlInput = document.getElementById('vikunja-url');
 const tokenInput = document.getElementById('api-token');
 const toggleTokenBtn = document.getElementById('toggle-token');
+const testConnectionBtn = document.getElementById('test-connection');
+const connectionStatus = document.getElementById('connection-status');
 const projectSelect = document.getElementById('default-project');
 const loadProjectsBtn = document.getElementById('load-projects');
 const projectStatus = document.getElementById('project-status');
@@ -593,6 +595,36 @@ toggleTokenBtn.addEventListener('click', () => {
   toggleTokenBtn.textContent = isPassword ? 'Hide' : 'Show';
 });
 
+// --- Test Connection ---
+function setConnectionStatus(msg, type) {
+  connectionStatus.textContent = msg;
+  connectionStatus.className = 'status-text' + (type ? ` ${type}` : '');
+}
+
+async function testConnection() {
+  const url = urlInput.value.trim();
+  const token = tokenInput.value.trim();
+
+  if (!url || !token) {
+    setConnectionStatus('Enter URL and API token first.', 'error');
+    return;
+  }
+
+  setConnectionStatus('Testing...', '');
+  testConnectionBtn.disabled = true;
+
+  const result = await window.settingsApi.fetchProjects(url, token);
+  testConnectionBtn.disabled = false;
+
+  if (result.success) {
+    setConnectionStatus('Connected', 'success');
+  } else {
+    setConnectionStatus(result.error || 'Connection failed.', 'error');
+  }
+}
+
+testConnectionBtn.addEventListener('click', testConnection);
+
 // --- Load projects ---
 async function loadProjects(preselectId) {
   const url = urlInput.value.trim();
@@ -609,6 +641,13 @@ async function loadProjects(preselectId) {
   const result = await window.settingsApi.fetchProjects(url, token);
 
   loadProjectsBtn.disabled = false;
+
+  // Also reflect result on Server tab connection status
+  if (result.success) {
+    setConnectionStatus('Connected', 'success');
+  } else {
+    setConnectionStatus(result.error || 'Connection failed.', 'error');
+  }
 
   if (!result.success) {
     setProjectStatus(result.error || 'Failed to load projects.', 'error');
