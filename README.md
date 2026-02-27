@@ -23,6 +23,27 @@ Press your hotkey from anywhere and a lightweight floating window appears. Type 
 - Cycle between projects (with a keyboard shortcut while the Quick Entry window is open)
 - Optional description
 
+<img width="2260" height="1000" alt="screenshot quick" src="https://github.com/user-attachments/assets/418fc218-ae21-4b6c-b929-83284ca2bc73" />
+
+### Browser integration
+
+When a browser is the foreground app, Quick Entry detects the active tab's URL and title and offers to attach it to your task.
+
+- Supports Chrome, Edge, Brave, Opera, Vivaldi, Arc, Safari (macOS), and Firefox
+- Mode: Off / Ask / Always auto-link (configurable in Settings > Integrations)
+- Optional browser extension for instant native messaging detection (<1ms)
+- Fallback: PowerShell + UI Automation on Windows, AppleScript on macOS
+
+### Obsidian integration
+
+When Obsidian is the foreground app, Quick Entry detects the active note and offers to attach a deep link to your task. The link is saved in the task description and shown in Quick View.
+
+- Requires the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) and [Advanced URI](https://github.com/Vinzent03/obsidian-advanced-uri) Obsidian plugins
+- Mode: Off / Ask / Always auto-link (configurable in Settings > Integrations)
+- Links survive file renames (uses UID-based deep links via Advanced URI)
+
+<img width="718" height="261" alt="Screenshot 2026-02-27 at 20 20 10" src="https://github.com/user-attachments/assets/7771095b-ab68-4cc8-984a-aa2b3b99fbca" />
+
 ### Natural language task input
 
 Type everything in one line and the parser extracts structured fields automatically. Recognized tokens are highlighted inline as you type, with a preview strip below the input showing what will be set.
@@ -61,26 +82,6 @@ A second hotkey opens Quick View: a floating list of your upcoming tasks. See wh
 - Flexible filtering (select which projects and filter requirements)
 - Clickable task titles open in browser
 
-<img width="2260" height="1000" alt="screenshot quick" src="https://github.com/user-attachments/assets/418fc218-ae21-4b6c-b929-83284ca2bc73" />
-
-
-### Obsidian integration
-
-When Obsidian is the foreground app, Quick Entry detects the active note and offers to attach a deep link to your task. The link is saved in the task description and shown in Quick View.
-
-- Requires the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) and [Advanced URI](https://github.com/Vinzent03/obsidian-advanced-uri) Obsidian plugins
-- Mode: Off / Ask / Always auto-link (configurable in Settings > Integrations)
-- Links survive file renames (uses UID-based deep links via Advanced URI)
-
-### Browser integration
-
-When a browser is the foreground app, Quick Entry detects the active tab's URL and title and offers to attach it to your task.
-
-- Supports Chrome, Edge, Brave, Opera, Vivaldi, Arc, Safari (macOS), and Firefox
-- Mode: Off / Ask / Always auto-link (configurable in Settings > Integrations)
-- Optional browser extension for instant native messaging detection (<1ms)
-- Fallback: PowerShell + UI Automation on Windows, AppleScript on macOS
-
 ### Scheduled notifications
 
 Desktop reminders for overdue, due-today, and upcoming tasks at configurable times.
@@ -99,21 +100,8 @@ Use the app as a local task manager without any server connection. Enable it in 
 - Only one project (local) — no project configuration required
 - When you later connect to a server, you'll be prompted to upload your local tasks to your default Vikunja project
 
-### Frosted glass UI with theme selector
-
-Translucent, blurred background that blends with your desktop. Choose between System, Light, or Dark theme in Settings.
-
-### Launch on startup
-
-Enable it once in Settings and the app is always ready when your computer starts.
-
-### Settings GUI
-
-Configure everything — server URL, API token, hotkeys, projects, filters, notifications, integrations — through a built-in settings window with auto-save. No need to edit config files (though you can if you want to).
 
 ![Slide2](https://github.com/user-attachments/assets/4b924b62-da9d-4a73-8875-fda38332e346)
-
-![Slide3](https://github.com/user-attachments/assets/0959e75b-b2c5-4ef4-8c45-215e6c82c8d4)
 
 ---
 
@@ -247,56 +235,6 @@ Uses [Electron Accelerator](https://www.electronjs.org/docs/latest/api/accelerat
 
 ---
 
-## Development
-
-Requires Node.js 20+.
-
-```bash
-git clone https://github.com/rendyhd/vikunja-quick-entry.git
-cd vikunja-quick-entry
-npm install
-npm start
-```
-
-### Project structure
-
-```
-src/
-  main.js                  # Main process — tray, windows, IPC, hotkeys
-  preload.js               # Preload for Quick Entry window
-  viewer-preload.js        # Preload for Quick View window
-  settings-preload.js      # Preload for Settings window
-  api.js                   # Vikunja API calls (net.request with 5s timeout)
-  cache.js                 # Offline sync queue, task caching, standalone storage
-  config.js                # Config file loading/saving
-  focus.js                 # Focus-return helper (Windows)
-  updater.js               # GitHub release checker (24h disk cache)
-  notifications.js         # Scheduled desktop reminders
-  obsidian-client.js       # Obsidian foreground detection and REST API
-  browser-client.js        # Browser context reading (URL/title)
-  browser-host-registration.js  # Native messaging host setup
-  window-url-reader.js     # Browser URL reading (PowerShell/AppleScript)
-  note-link.js             # Deep link construction for Obsidian notes
-  lib/task-parser/         # NLP task parser (dates, priorities, labels, projects, recurrence)
-  renderer/                # Quick Entry UI (HTML/CSS/JS)
-  viewer/                  # Quick View UI (HTML/CSS/JS)
-  settings/                # Settings UI (HTML/CSS/JS)
-extensions/
-  browser/                 # Browser extension (Chrome unpacked + Firefox .xpi)
-resources/
-  native-messaging-host/   # Node.js bridge for browser native messaging
-```
-
-### Architecture
-
-The app uses Electron's multi-process model with strict context isolation:
-
-- **Main process** — app lifecycle, tray icon, global hotkeys, IPC handlers, window management, notifications scheduling
-- **Renderer processes** — three sandboxed windows (Quick Entry, Quick View, Settings) that communicate with main only through preload-exposed IPC bridges
-- **HTTP layer** — all API calls use Electron's `net.request()` wrapped in Promises with manual timeout handling
-
-Renderers are fully sandboxed (`sandbox: true`, `contextIsolation: true`, `nodeIntegration: false`). Each has its own preload script exposing a minimal API surface.
-
 ### API endpoints used
 
 | Method | Endpoint | Purpose |
@@ -305,48 +243,6 @@ Renderers are fully sandboxed (`sandbox: true`, `contextIsolation: true`, `nodeI
 | GET | `/api/v1/projects` | Fetch project list (Settings) |
 | GET | `/api/v1/tasks` | Fetch tasks with filters (Quick View, Notifications) |
 | POST | `/api/v1/tasks/{id}` | Update / mark task done (Quick View) |
-
-### Building
-
-```bash
-npx electron-builder --win    # Windows (.exe)
-npx electron-builder --mac    # macOS (.dmg)
-```
-
-Produces platform-specific installers in `dist/` — NSIS `.exe` on Windows, `.dmg` on macOS.
-
-### CI/CD
-
-Pushing a version tag triggers a GitHub Actions workflow that builds on Windows and macOS and publishes a GitHub Release with installers:
-
-```bash
-git tag v3.0.0
-git push origin v3.0.0
-```
-
-Only `v*` tags trigger the workflow.
-
-### Version bumping
-
-The version must be updated in **two files** before tagging:
-
-| File | Location |
-|------|----------|
-| `package.json` | `"version"` field |
-| `package-lock.json` | Top-level `"version"` and `packages[""]["version"]` |
-
-All three values must match.
-
----
-
-## Security
-
-- **Sandboxed renderers** — all windows run with `sandbox: true`, `contextIsolation: true`, `nodeIntegration: false`
-- **Content Security Policy** — `default-src 'self'` on all pages; no inline scripts or external resources
-- **URL validation** — API calls reject non-HTTP(S) protocols
-- **Electron Fuses** — `RunAsNode`, `EnableNodeOptionsEnvironmentVariable`, and `EnableNodeCliInspectArguments` all disabled
-- **Request timeouts** — 5-second timeout on all API calls to prevent hanging
-- **Token handling** — API token stored locally in config, displayed as password field in Settings
 
 ---
 
