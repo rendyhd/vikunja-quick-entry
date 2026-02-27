@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld('settingsApi', {
   openBrowserExtensionFolder: () => ipcRenderer.invoke('open-browser-extension-folder'),
   saveFirefoxExtension: () => ipcRenderer.invoke('save-firefox-extension'),
   testBrowserBridge: () => ipcRenderer.invoke('test-browser-bridge'),
+  getEncryptionStatus: () => ipcRenderer.invoke('get-encryption-status'),
   getPlatform: () => process.platform,
 });

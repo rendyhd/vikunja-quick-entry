@@ -1076,7 +1076,23 @@ projectCycleModifier.addEventListener('change', () => {
   updateCycleShortcutDisplay(projectCycleModifier.value);
 });
 
+// --- Encryption status badge ---
+async function updateEncryptionBadge() {
+  const badge = document.getElementById('encryption-badge');
+  if (!badge) return;
+  try {
+    const status = await window.settingsApi.getEncryptionStatus();
+    badge.textContent = status.available ? 'Encrypted at rest' : 'Not encrypted';
+    badge.classList.toggle('encrypted', status.available);
+    badge.classList.toggle('not-encrypted', !status.available);
+    badge.hidden = false;
+  } catch {
+    // ignore — badge stays hidden
+  }
+}
+
 // --- Init ---
 loadExistingConfig().then(() => {
   setupAutoSave();
+  updateEncryptionBadge();
 });

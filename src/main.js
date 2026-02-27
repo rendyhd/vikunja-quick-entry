@@ -13,7 +13,7 @@ const {
   screen,
 } = require('electron');
 const path = require('path');
-const { getConfig, saveConfig } = require('./config');
+const { getConfig, saveConfig, isEncryptionAvailable } = require('./config');
 const { createTask, fetchProjects, fetchTasks, markTaskDone, markTaskUndone, updateTaskDueDate, updateTask, fetchProjectViews, fetchViewTasks, fetchLabels, addLabelToTask } = require('./api');
 const { returnFocusToPreviousWindow } = require('./focus');
 const { checkForUpdates } = require('./updater');
@@ -887,6 +887,10 @@ ipcMain.handle('save-task', async (_event, title, description, dueDate, projectI
 
 ipcMain.handle('close-window', () => {
   hideWindow();
+});
+
+ipcMain.handle('get-encryption-status', () => {
+  return { available: isEncryptionAvailable() };
 });
 
 ipcMain.handle('get-config', () => {

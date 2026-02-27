@@ -1,8 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const { app } = require('electron');
+const { app, safeStorage } = require('electron');
 
 const CONFIG_FILENAME = 'config.json';
+const ENCRYPTED_PREFIX = 'enc:';
+const SENSITIVE_KEYS = ['api_token', 'obsidian_api_key'];
 
 function getConfigPath() {
   // First check portable location (next to the executable / project root)
@@ -21,6 +23,37 @@ function getConfigPath() {
   return appDataPath;
 }
 
+function isEncryptionAvailable() {
+  try {
+    return safeStorage.isEncryptionAvailable();
+  } catch {
+    return false;
+  }
+}
+
+function encryptValue(plaintext) {
+  if (!plaintext || typeof plaintext !== 'string') return plaintext;
+  if (plaintext.startsWith(ENCRYPTED_PREFIX)) return plaintext; // already encrypted
+  if (!isEncryptionAvailable()) return plaintext;
+  try {
+    const encrypted = safeStorage.encryptString(plaintext);
+    return ENCRYPTED_PREFIX + encrypted.toString('base64');
+  } catch {
+    return plaintext;
+  }
+}
+
+function decryptValue(storedValue) {
+  if (!storedValue || typeof storedValue !== 'string') return storedValue;
+  if (!storedValue.startsWith(ENCRYPTED_PREFIX)) return storedValue; // plaintext passthrough
+  try {
+    const ciphertext = Buffer.from(storedValue.slice(ENCRYPTED_PREFIX.length), 'base64');
+    return safeStorage.decryptString(ciphertext);
+  } catch {
+    return ''; // decryption failed — user must re-enter token
+  }
+}
+
 function loadConfig() {
   const configPath = getConfigPath();
 
@@ -31,7 +64,26 @@ function loadConfig() {
   try {
     const raw = fs.readFileSync(configPath, 'utf-8');
     const config = JSON.parse(raw);
-    return validateConfig(config) ? config : null;
+
+    // Decrypt sensitive fields in memory
+    let needsMigration = false;
+    for (const key of SENSITIVE_KEYS) {
+      if (config[key] && typeof config[key] === 'string') {
+        if (!config[key].startsWith(ENCRYPTED_PREFIX) && isEncryptionAvailable()) {
+          needsMigration = true;
+        }
+        config[key] = decryptValue(config[key]);
+      }
+    }
+
+    if (!validateConfig(config)) return null;
+
+    // Auto-migrate plaintext tokens to encrypted form
+    if (needsMigration) {
+      saveConfig(config);
+    }
+
+    return config;
   } catch {
     return null;
   }
@@ -53,7 +105,16 @@ function saveConfig(config) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+
+  // Shallow copy to avoid mutating the caller's object
+  const toWrite = { ...config };
+  for (const key of SENSITIVE_KEYS) {
+    if (toWrite[key] && typeof toWrite[key] === 'string') {
+      toWrite[key] = encryptValue(toWrite[key]);
+    }
+  }
+
+  fs.writeFileSync(configPath, JSON.stringify(toWrite, null, 2), 'utf-8');
 }
 
 function getConfig() {
@@ -109,4 +170,4 @@ function getConfig() {
   };
 }
 
-module.exports = { getConfig, saveConfig, getConfigPath, validateConfig };
+module.exports = { getConfig, saveConfig, getConfigPath, validateConfig, isEncryptionAvailable };
