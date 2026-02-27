@@ -18,9 +18,37 @@ It lives in your system tray, stays out of the way, and is always one keystroke 
 ### Instant task capture with a global hotkey
 
 Press your hotkey from anywhere and a lightweight floating window appears. Type your task, hit Enter, and it's saved to Vikunja. The window disappears and focus returns to whatever you were doing. The whole interaction takes a few seconds. Including:
+- **Natural language parsing** — type dates, priorities, labels, projects, and recurrence inline and they're extracted automatically (see below)
 - Quick-schedule for today (by adding `!` anywhere in your task title)
 - Cycle between projects (with a keyboard shortcut while the Quick Entry window is open)
 - Optional description
+
+### Natural language task input
+
+Type everything in one line and the parser extracts structured fields automatically. Recognized tokens are highlighted inline as you type, with a preview strip below the input showing what will be set.
+
+**Dates** — powered by [chrono-node](https://github.com/wanasit/chrono), understands natural phrases:
+- `tomorrow`, `next friday`, `in 3 days`, `jan 15`, `next week`, etc.
+
+**Priority** — two syntax modes:
+| Todoist mode (default) | Vikunja mode | Meaning |
+|------------------------|--------------|---------|
+| `p1` | `!1` | Urgent |
+| `p2` | `!2` | High |
+| `p3` | `!3` | Medium |
+| `p4` | `!4` | Low |
+
+Both modes also accept `!urgent`, `!high`, `!medium`, `!low`.
+
+**Labels** — prefix with `@` (Todoist mode) or `*` (Vikunja mode). Multi-word labels use quotes: `@"work stuff"`. Autocomplete suggests matching labels from your Vikunja server as you type.
+
+**Projects** — prefix with `#` (Todoist mode) or `+` (Vikunja mode). Autocomplete suggests matching projects. Overrides the default project for that task.
+
+**Recurrence** — `every day`, `every 2 weeks`, `every month`, or shorthands like `daily`, `weekly`, `monthly`, `yearly`.
+
+**Example:** `Call dentist tomorrow p2 @health every month` → title "Call dentist", due tomorrow, high priority, label "health", repeats monthly.
+
+The parser is enabled by default and can be toggled off in Settings > Quick Entry. Syntax mode (Todoist vs Vikunja prefixes) is also configurable there.
 
 ### At-a-glance task list
 
@@ -138,12 +166,13 @@ Press your Quick Entry hotkey anywhere to create tasks. Press your Quick View ho
 
 | Key | Action |
 |-----|--------|
-| **Enter** | Save task and close |
-| **Tab** | Expand description field |
+| **Enter** | Save task and close (or accept autocomplete suggestion) |
+| **Tab** | Expand description field (or accept autocomplete suggestion) |
 | **Shift+Enter** | New line in description |
 | **Ctrl/Alt+Arrow** | Cycle between projects |
+| **Up/Down** | Navigate autocomplete suggestions |
 | **Ctrl+L** | Link detected Obsidian note or browser tab |
-| **Escape** | Close without saving |
+| **Escape** | Close autocomplete, or close window |
 | **!** in title | Schedule task for today |
 
 ### Quick View
@@ -248,6 +277,7 @@ src/
   browser-host-registration.js  # Native messaging host setup
   window-url-reader.js     # Browser URL reading (PowerShell/AppleScript)
   note-link.js             # Deep link construction for Obsidian notes
+  lib/task-parser/         # NLP task parser (dates, priorities, labels, projects, recurrence)
   renderer/                # Quick Entry UI (HTML/CSS/JS)
   viewer/                  # Quick View UI (HTML/CSS/JS)
   settings/                # Settings UI (HTML/CSS/JS)
