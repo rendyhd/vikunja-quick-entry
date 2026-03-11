@@ -28,6 +28,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Bundle renderer
+        run: node build-renderer.js
       - name: Build
         run: npx electron-builder --win --publish never
       - name: Upload to release
@@ -45,6 +47,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Bundle renderer
+        run: node build-renderer.js
       - name: Build
         run: npx electron-builder --mac --publish never
       - name: Upload to release
