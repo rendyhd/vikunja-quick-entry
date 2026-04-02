@@ -966,6 +966,9 @@ ipcMain.handle('get-full-config', () => {
         obsidian_vault_name: config.obsidian_vault_name || '',
         browser_link_mode: config.browser_link_mode || 'off',
         browser_extension_id: config.browser_extension_id || '',
+        // NLP settings
+        nlp_enabled: config.nlp_enabled !== false,
+        nlp_syntax_mode: config.nlp_syntax_mode || 'todoist',
       }
     : null;
 });
@@ -1027,6 +1030,9 @@ ipcMain.handle('save-settings', async (_event, settings) => {
       obsidian_vault_name: settings.obsidian_vault_name || '',
       browser_link_mode: settings.browser_link_mode || 'off',
       browser_extension_id: settings.browser_extension_id || '',
+      // NLP settings
+      nlp_enabled: settings.nlp_enabled !== false,
+      nlp_syntax_mode: settings.nlp_syntax_mode || 'todoist',
     };
 
     // Preserve window positions from existing config
