@@ -54,10 +54,10 @@ Type everything in one line and the parser extracts structured fields automatica
 **Priority** — two syntax modes:
 | Todoist mode (default) | Vikunja mode | Meaning |
 |------------------------|--------------|---------|
-| `p1` | `!1` | Urgent |
-| `p2` | `!2` | High |
-| `p3` | `!3` | Medium |
-| `p4` | `!4` | Low |
+| `p1` | `!4` | Urgent |
+| `p2` | `!3` | High |
+| `p3` | `!2` | Medium |
+| `p4` | `!1` | Low |
 
 Both modes also accept `!urgent`, `!high`, `!medium`, `!low`.
 
