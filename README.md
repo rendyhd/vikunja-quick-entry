@@ -1,5 +1,7 @@
 # Vikunja Quick Entry Companion App
 
+## With the [release of Vikunja 2.3](https://vikunja.io/changelog/whats-new-in-vikunja-2.3.0) this feature has been added to the official Desktop App. My own third-party app [Vicu](https://github.com/rendyhd/vicu) also has all of these features build in. I will stop developing new features to this companion app, but will still respond to bugs.
+
 **Capture tasks instantly. Check your list without breaking flow.**
 
 Vikunja is a powerful task manager — but sometimes you just need to jot down a thought before it slips away, or glance at what's due next without opening a browser. That's what this companion app does.
